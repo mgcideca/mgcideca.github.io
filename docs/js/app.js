@@ -4,7 +4,7 @@
   const CFG = window.LB_CONFIG || {};
   const S = {
     be: null, me: null, settings: null, data: null, dataAt: 0, quiz: null, renderTok: 0,
-    ui: { authMode: "signin", authEmail: "", board: "grind", season: null, cluster: "all", execTab: "roleplay", adminTab: "settings", qCluster: "all", qSearch: "", draft: null }
+    ui: { practiceTab: "exams", authMode: "signin", authEmail: "", board: "grind", season: null, cluster: "all", execTab: "roleplay", adminTab: "settings", qCluster: "all", qSearch: "", draft: null }
   };
 
   /* ---------------- helpers ---------------- */
@@ -57,10 +57,10 @@
 
   async function loadData(force) {
     if (!force && S.data && Date.now() - S.dataAt < 5 * 60e3) return S.data;
-    const [profiles, roleplays, pirush, examStats] = await Promise.all([
-      S.be.listProfiles(), S.be.listRoleplays(), S.be.listPiRush(), S.be.listExamStats()
+    const [profiles, roleplays, examStats] = await Promise.all([
+      S.be.listProfiles(), S.be.listRoleplays(), S.be.listExamStats()
     ]);
-    S.data = { profiles, roleplays, pirush, examStats };
+    S.data = { profiles, roleplays, examStats };
     S.dataAt = Date.now();
     return S.data;
   }
@@ -80,7 +80,7 @@
     </div>`;
   }
   function shell(content, active) {
-    const links = [["home", "Home"], ["leaderboards", "Standings"], ["practice", "Exam practice"], ["me", "My progress"]];
+    const links = [["home", "Home"], ["leaderboards", "Leaderboards"], ["practice", "Practice"], ["me", "My Progress"]];
     if (isExec()) links.push(["exec", "Exec tools"]);
     if (isAdmin()) links.push(["admin", "Admin"]);
     const signedIn = S.me && !S.me.blocked && !S.me.error;
@@ -175,7 +175,7 @@
       <dl class="entry-rules">
         <div><dt>Roleplays</dt><dd>Book a slot on the signup sheet. An exec scores you on the official judge's form and leaves feedback. Each one earns ${fmt(P.rpAttend)} points plus your score.</dd></div>
         <div><dt>Exam practice</dt><dd>Mini exams or full 100-question exams by cluster. Questions you answer for the first time count toward points and accuracy.</dd></div>
-        <div><dt>Standings</dt><dd>Separate boards for total effort, roleplay average, exam accuracy and most improved, reset each season.</dd></div>
+        <div><dt>Leaderboards</dt><dd>Separate boards for total points, roleplay average, exam accuracy and most improved, reset each season.</dd></div>
       </dl>
     </section>`;
   }
@@ -199,12 +199,12 @@
   }
   function profileFields(p) {
     const grades = ["9", "10", "11", "12"];
-    return `<label>Display name<input name="displayName" maxlength="40" required value="${esc(p.displayName || "")}"><small>Shown on the standings.</small></label>
+    return `<label>Display name<input name="displayName" maxlength="40" required value="${esc(p.displayName || "")}"><small>Shown on the leaderboards.</small></label>
       <div class="row2">
         <label>Grade<select name="grade"><option value="">Not set</option>${grades.map((g) => `<option ${String(p.grade) === g ? "selected" : ""}>${g}</option>`).join("")}</select></label>
         <label>Main event<select name="event"><option value="">Not set</option>${eventOptions(p.event)}</select></label>
       </div>
-      <label class="check"><input type="checkbox" name="showOnBoards" ${p.showOnBoards !== false ? "checked" : ""}> Show me on the standings</label>`;
+      <label class="check"><input type="checkbox" name="showOnBoards" ${p.showOnBoards !== false ? "checked" : ""}> Show me on the leaderboards</label>`;
   }
   function eventOptions(selected) {
     const groups = { principles: "Principles", series: "Individual Series", tdm: "Team Decision Making" };
@@ -223,7 +223,7 @@
   function standingsTable(ranked, board, opts = {}) {
     const B = LB.BOARDS[board];
     const cols = {
-      grind: { head: ["Roleplays", "PI Rush", "Exam Qs", "Points"], cells: (x) => [x.rpCount, x.piCount, x.answered, fmt(x.total)] },
+      grind: { head: ["Roleplays", "Exam Qs", "Points"], cells: (x) => [x.rpCount, x.answered, fmt(x.total)] },
       roleplay: { head: ["Roleplays", "Best", "Average"], cells: (x) => [x.rpCount, fmt(x.rpBest) + "%", fmt(x.rpAvg) + "%"] },
       exam: { head: ["Questions", "Correct", "Accuracy"], cells: (x) => [x.answered, x.correct, fmt(x.examAcc) + "%"] },
       improved: { head: ["First", "Recent", "Change"], cells: (x) => [fmt(x.firstAvg) + "%", fmt(x.recentAvg) + "%", `<span class="${x.improved >= 0 ? "up" : "down"}">${x.improved >= 0 ? "+" : "−"}${fmt(Math.abs(x.improved))}</span>`] }
@@ -256,19 +256,18 @@
     const left = seasonObj ? daysUntil(seasonObj.end) : null;
     const upcoming = (s.keyDates || []).filter((k) => daysUntil(k.date) >= 0).sort((a, b) => (a.date < b.date ? -1 : 1)).slice(0, 4);
     const activity = [
-      ...d.roleplays.map((r) => ({ t: "rp", uid: r.memberUid, date: r.date, at: r.createdAt || 0, event: r.event, team: r.teamId })),
-      ...d.pirush.map((r) => ({ t: "pi", uid: r.memberUid, date: r.date, at: r.createdAt || 0, event: r.event }))
+      ...d.roleplays.map((r) => ({ t: "rp", uid: r.memberUid, date: r.date, at: r.createdAt || 0, event: r.event, team: r.teamId }))
     ].filter((a) => d.profiles[a.uid] && d.profiles[a.uid].showOnBoards !== false)
       .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : b.at - a.at)).slice(0, 6);
 
-    const rankLine = myRank ? `<p class="you-rank"><span class="big">${ordinal(myRank.rank)}</span><span>of ${ranked.length} in grind points</span></p>`
-      : `<p class="you-rank empty-rank"><span>${hidden ? "You're hidden from the standings. Change this in My progress." : "Not ranked yet. One roleplay or practice exam gets you on the board."}</span></p>`;
+    const rankLine = myRank ? `<p class="you-rank"><span class="big">${ordinal(myRank.rank)}</span><span>of ${ranked.length} in total points</span></p>`
+      : `<p class="you-rank empty-rank"><span>${hidden ? "You're hidden from the leaderboards. Change this in My Progress." : "Not ranked yet. One roleplay or practice exam gets you on the board."}</span></p>`;
 
     return `
     ${pageTitle(esc(seasonName(season)), seasonObj ? `Ends ${fmtDate(seasonObj.end)}, ${plural(left, "day")} left` : "Between seasons")}
     <div class="home">
       <section class="panel standings-panel">
-        <div class="panel-head"><h2>Grind points</h2><a href="#leaderboards">All standings</a></div>
+        <div class="panel-head"><h2>Total points</h2><a href="#leaderboards">All leaderboards</a></div>
         ${standingsTable(ranked, "grind", { limit: 10, compact: true, empty: "No activity yet this season." })}
       </section>
       <aside class="home-side">
@@ -280,15 +279,15 @@
             <div><dt>Roleplay avg</dt><dd>${mine && mine.rpCount ? fmt(mine.rpAvg) + "%" : "–"}</dd></div>
             <div><dt>Exam accuracy</dt><dd>${mine && mine.answered ? fmt(mine.examAcc, 0) + "%" : "–"}</dd></div>
           </dl>
-          <div class="actions"><a class="btn" href="${esc(s.signupSheetUrl)}" target="_blank" rel="noopener">Book a roleplay</a><a class="btn secondary" href="#practice">Practise an exam</a></div>
+          <div class="actions"><a class="btn" href="${esc(s.signupSheetUrl)}" target="_blank" rel="noopener">Book a roleplay</a><a class="btn secondary" href="#practice" data-action="practiceTab" data-id="exams">Practise an exam</a></div>
         </section>
         <section class="side-block">
           <h2>Coming up</h2>
           ${upcoming.length ? `<ul class="dates">${upcoming.map((k) => { const n = daysUntil(k.date); return `<li><time datetime="${esc(k.date)}">${fmtDate(k.date)}</time><span>${esc(k.label)}</span><span class="when">${n === 0 ? "Today" : n === 1 ? "Tomorrow" : `${n} days`}</span></li>`; }).join("")}</ul>` : `<p class="muted">No dates set.</p>`}
         </section>
         <section class="side-block">
-          <h2>Recent practice</h2>
-          ${activity.length ? `<ul class="feed">${activity.map((a) => `<li><span><b>${esc(d.profiles[a.uid].displayName)}</b> ${a.t === "rp" ? `did ${a.team ? "a team" : "a"} ${esc(evCode(a.event))} roleplay` : "did a PI Rush"}</span><time>${fmtDate(a.date)}</time></li>`).join("")}</ul>` : `<p class="muted">Nothing logged yet.</p>`}
+          <h2>Recent roleplays</h2>
+          ${activity.length ? `<ul class="feed">${activity.map((a) => `<li><span><b>${esc(d.profiles[a.uid].displayName)}</b> did ${a.team ? "a team" : /^[AEFHILMNORSX]/.test(evCode(a.event)) ? "an" : "a"} ${esc(evCode(a.event))} roleplay</span><time>${fmtDate(a.date)}</time></li>`).join("")}</ul>` : `<p class="muted">Nothing logged yet.</p>`}
         </section>
       </aside>
     </div>`;
@@ -309,7 +308,7 @@
 
     let note = "";
     if (!meRanked) {
-      if (d.profiles[S.me.uid] && d.profiles[S.me.uid].showOnBoards === false) note = `You're hidden from the standings. You can change this in My progress.`;
+      if (d.profiles[S.me.uid] && d.profiles[S.me.uid].showOnBoards === false) note = `You're hidden from the leaderboards. You can change this in My Progress.`;
       else if (board === "roleplay") note = `${plural(Math.max(0, s.mins.rpAvg - (meRow ? meRow.rpCount : 0)), "more roleplay")} and you'll appear here.`;
       else if (board === "exam") note = `${plural(Math.max(0, s.mins.examAcc - (meRow ? meRow.answered : 0)), "more new question")} and you'll appear here.`;
       else if (board === "improved") note = `${plural(Math.max(0, s.mins.improvedMin - (meRow ? meRow.rpCount : 0)), "more roleplay")} and you'll appear here.`;
@@ -318,17 +317,16 @@
     const minText = { roleplay: `Needs ${s.mins.rpAvg} or more roleplays.`, exam: `Needs ${s.mins.examAcc} or more first-attempt questions.`, improved: `Needs ${s.mins.improvedMin} or more roleplays.`, grind: "" }[board];
 
     return `
-    ${pageTitle("Standings", "", `<label class="inline">Season <select data-change="boardSeason">${seasonOptions(season)}</select></label><label class="inline">Cluster <select data-change="boardCluster">${clusterOptions(cluster)}</select></label><button class="btn secondary small" data-action="refresh">Refresh</button>`)}
+    ${pageTitle("Leaderboards", "", `<label class="inline">Season <select data-change="boardSeason">${seasonOptions(season)}</select></label><label class="inline">Cluster <select data-change="boardCluster">${clusterOptions(cluster)}</select></label><button class="btn secondary small" data-action="refresh">Refresh</button>`)}
     ${tabs(Object.entries(LB.BOARDS).map(([id, b]) => [id, b.label]), board, "board")}
     <p class="board-blurb">${esc(B.blurb)} ${minText}</p>
     ${note ? `<p class="notice">${esc(note)}</p>` : ""}
     <section class="panel">${standingsTable(ranked, board, { empty: `No one qualifies for this board yet${cluster !== "all" ? " in this cluster" : ""}.` })}</section>
     <section class="explainer">
-      <h2>How grind points are calculated</h2>
+      <h2>How total points are calculated</h2>
       <dl class="rules">
         <div><dt>Roleplay</dt><dd>${fmt(P.rpAttend)} points, plus your score divided by ${fmt(P.rpScoreDiv)}. An 85% roleplay is worth ${fmt(P.rpAttend + 85 / P.rpScoreDiv)}.</dd></div>
         <div><dt>Personal best</dt><dd>${fmt(P.rpPbBonus)} bonus points when you beat your best roleplay score.</dd></div>
-        <div><dt>PI Rush</dt><dd>${P.piRush.map((x) => fmt(x)).join(", ")} points for a one, two or three star rating.</dd></div>
         <div><dt>Exam practice</dt><dd>${fmt(P.examPerCorrect)} points for each question you get right on your first try. Repeats don't count.</dd></div>
       </dl>
     </section>`;
@@ -337,6 +335,39 @@
   /* ---------------- PRACTICE ---------------- */
   async function pagePractice() {
     if (S.quiz) return S.quiz.done ? quizResults() : quizView();
+    const head = `${pageTitle("Practice")}${tabs([["exams", "Exam practice"], ["roleplays", "Book a roleplay"]], S.ui.practiceTab, "practiceTab")}`;
+    return head + (S.ui.practiceTab === "roleplays" ? await practiceRoleplays() : await practiceExams());
+  }
+  async function practiceRoleplays() {
+    const d = await loadData();
+    const s = S.settings;
+    const mine = d.roleplays.filter((r) => r.memberUid === S.me.uid).sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : (b.createdAt || 0) - (a.createdAt || 0))).slice(0, 4);
+    const upcoming = (s.keyDates || []).filter((k) => daysUntil(k.date) >= 0).sort((a, b) => (a.date < b.date ? -1 : 1)).slice(0, 3);
+    const P = s.points;
+    return `<div class="split">
+      <section class="panel pad">
+        <h2>How roleplays work</h2>
+        <ol class="steps">
+          <li><b>Sign up for a time.</b> Add your name to an open slot on the roleplay signup sheet, at lunch or online.</li>
+          <li><b>Do the roleplay with an exec.</b> They give you a case for your event and score you on the 2026 DECA judge's evaluation form.</li>
+          <li><b>Read your feedback.</b> Your score, the level you reached on each line of the form and the judge's comments appear in My Progress.</li>
+        </ol>
+        <p class="muted">Each roleplay earns ${fmt(P.rpAttend)} points plus your score divided by ${fmt(P.rpScoreDiv)}, and ${fmt(P.rpPbBonus)} more when you beat your personal best.</p>
+        <div class="actions"><a class="btn" href="${esc(s.signupSheetUrl)}" target="_blank" rel="noopener">Open the signup sheet</a></div>
+      </section>
+      <aside>
+        <section class="side-block">
+          <h2>Your recent roleplays</h2>
+          ${mine.length ? `<table class="plain"><tbody>${mine.map((r) => `<tr><td>${fmtDate(r.date)}</td><td><b>${esc(evCode(r.event))}</b></td><td class="num">${fmt(LB.pct(r))}%</td></tr>`).join("")}</tbody></table><p class="fine"><a href="#me">See all your feedback in My Progress</a></p>` : `<p class="muted">You haven't done a roleplay yet. Your first one gets you on the roleplay leaderboards.</p>`}
+        </section>
+        <section class="side-block">
+          <h2>Coming up</h2>
+          ${upcoming.length ? `<ul class="dates">${upcoming.map((k) => { const n = daysUntil(k.date); return `<li><time datetime="${esc(k.date)}">${fmtDate(k.date)}</time><span>${esc(k.label)}</span><span class="when">${n === 0 ? "Today" : n === 1 ? "Tomorrow" : `${n} days`}</span></li>`; }).join("")}</ul>` : `<p class="muted">No dates set.</p>`}
+        </section>
+      </aside>
+    </div>`;
+  }
+  async function practiceExams() {
     const [questions, seen, attempts, d] = await Promise.all([S.be.listQuestions(), S.be.getSeen(), S.be.listMyAttempts(), loadData()]);
     const counts = {};
     questions.forEach((q) => { counts[q.cluster] = (counts[q.cluster] || 0) + 1; });
@@ -346,7 +377,7 @@
     const recent = attempts.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)).slice(0, 6);
 
     return `
-    ${pageTitle("Exam practice", "Questions you haven't seen before count toward points and accuracy. Repeats are for review.")}
+    <p class="board-blurb">Questions you haven't seen before count toward points and accuracy. Repeats are for review.</p>
     <div class="split">
       <section class="panel pad">
         <h2>New exam</h2>
@@ -413,7 +444,7 @@
         <div>
           <h1>${fmt(r.points)} points earned</h1>
           <p class="muted">${r.firstCount === r.total ? "All questions were new, so they all counted." : `${plural(r.firstCount, "new question")} counted. ${r.total - r.firstCount} were review.`}</p>
-          <div class="actions"><button class="btn" data-action="newQuiz">Start another exam</button><a class="btn secondary" href="#leaderboards" data-action="closeQuiz">View standings</a></div>
+          <div class="actions"><button class="btn" data-action="newQuiz">Start another exam</button><a class="btn secondary" href="#leaderboards" data-action="closeQuiz">View leaderboards</a></div>
         </div>
       </div>
       ${wrong.length ? `<h2>Questions you missed</h2><ol class="review">${wrong.map(({ a, q }) => `<li><p class="rq">${esc(q.q)}</p><p><span class="down">You chose ${L[a.choice]}:</span> ${esc(q.options[a.choice])}</p><p><span class="up">Answer ${L[q.answer]}:</span> ${esc(q.options[q.answer])}</p>${q.explanation ? `<p class="muted">${esc(q.explanation)}</p>` : ""}</li>`).join("")}</ol>` : `<p class="notice">No misses. Try a longer exam or a different cluster.</p>`}
@@ -466,7 +497,6 @@
     const s = S.settings;
     const [feedback, attempts] = await Promise.all([S.be.getFeedback(S.me.uid), S.be.listMyAttempts()]);
     const myRps = d.roleplays.filter((r) => r.memberUid === S.me.uid).sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : (b.createdAt || 0) - (a.createdAt || 0)));
-    const myPi = d.pirush.filter((r) => r.memberUid === S.me.uid).sort((a, b) => (a.date < b.date ? 1 : -1));
     const pb = LB.markPersonalBests(d.roleplays);
     const season = LB.currentSeasonId(s);
     const rowS = LB.computeRows({ ...d, settings: s, season, includeHidden: true }).find((x) => x.uid === S.me.uid);
@@ -478,7 +508,7 @@
     const prof = d.profiles[S.me.uid] || S.me;
 
     return `
-    ${pageTitle("My progress", "Your judge feedback, where you lose points, and your exam history.")}
+    ${pageTitle("My Progress", "Your judge feedback, where you lose points, and your exam history.")}
     <dl class="figures wide">
       <div><dt>${esc(seasonName(season))} points</dt><dd>${rowS ? fmt(rowS.total) : "0"}</dd></div>
       <div><dt>All-time points</dt><dd>${rowA ? fmt(rowA.total) : "0"}</dd></div>
@@ -511,16 +541,10 @@
       ${myRps.length ? `<div class="rp-list">${myRps.map((r) => rpCard(r, feedback[r.id], pb[r.id])).join("")}</div>` : `<p class="empty">No roleplays yet. Sign up on the roleplay sheet to do one with an exec.</p>`}
     </section>
 
-    <div class="split even">
-      <section class="block">
-        <h2>PI Rush</h2>
-        ${myPi.length ? `<table class="plain"><thead><tr><th>Date</th><th>Performance indicator</th><th class="num">Rating</th></tr></thead><tbody>${myPi.map((p) => `<tr><td>${fmtDate(p.date)}</td><td>${esc(p.pi)}</td><td class="num"><span class="stars" aria-label="${p.rating} of 3">${"★".repeat(p.rating)}<span class="off">${"★".repeat(3 - p.rating)}</span></span></td></tr>`).join("")}</tbody></table>` : `<p class="muted">No PI Rushes yet.</p>`}
-      </section>
       <section class="block">
         <h2>Exams</h2>
-        ${attempts.length ? `<table class="plain"><thead><tr><th>Date</th><th>Cluster</th><th class="num">Score</th><th class="num">Points</th></tr></thead><tbody>${attempts.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)).slice(0, 15).map((a) => `<tr><td>${fmtDate(a.date)}</td><td>${esc(a.cluster === "all" ? "Mixed" : LB.clusterName(a.cluster))}</td><td class="num">${a.correct}/${a.total}</td><td class="num">${fmt(a.firstCorrect * s.points.examPerCorrect)}</td></tr>`).join("")}</tbody></table>` : `<p class="muted">No practice exams yet. <a href="#practice">Start one</a>.</p>`}
-      </section>
-    </div>`;
+        ${attempts.length ? `<table class="plain"><thead><tr><th>Date</th><th>Cluster</th><th class="num">Score</th><th class="num">Points</th></tr></thead><tbody>${attempts.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)).slice(0, 15).map((a) => `<tr><td>${fmtDate(a.date)}</td><td>${esc(a.cluster === "all" ? "Mixed" : LB.clusterName(a.cluster))}</td><td class="num">${a.correct}/${a.total}</td><td class="num">${fmt(a.firstCorrect * s.points.examPerCorrect)}</td></tr>`).join("")}</tbody></table>` : `<p class="muted">No practice exams yet. <a href="#practice" data-action="practiceTab" data-id="exams">Start one</a>.</p>`}
+      </section>`;
   }
   function rpCard(r, fb, isPB) {
     const p = LB.pct(r);
@@ -566,10 +590,9 @@
     const tab = S.ui.execTab;
     const [d, users] = await Promise.all([loadData(), S.be.listUsers()]);
     const pending = users.filter((u) => !u.approved);
-    const list = [["roleplay", "Score a roleplay"], ["pirush", "PI Rush"], ["approvals", `Approvals${pending.length ? ` <span class="count">${pending.length}</span>` : ""}`], ["questions", "Question bank"], ["recent", "Recent and calibration"]];
+    const list = [["roleplay", "Score a roleplay"], ["approvals", `Approvals${pending.length ? ` <span class="count">${pending.length}</span>` : ""}`], ["questions", "Question bank"], ["recent", "Recent and calibration"]];
     let body = "";
     if (tab === "roleplay") body = execRoleplay(users);
-    else if (tab === "pirush") body = execPiRush(users, d);
     else if (tab === "approvals") body = execApprovals(pending);
     else if (tab === "questions") body = await execQuestions();
     else body = execRecent(d);
@@ -695,35 +718,9 @@
       render();
     } catch (e) { console.error(e); toast("The roleplay wasn't saved: " + e.message, "bad"); btn.disabled = false; }
   }
-  function execPiRush(users, d) {
-    const recent = d.pirush.slice().sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)).slice(0, 10);
-    const P = S.settings.points;
-    return `<div class="split">
-      <section class="panel pad">
-        <h2>Log a PI Rush</h2>
-        <p class="muted">Give the member one PI and about 60 seconds to explain it, then rate the explanation.</p>
-        <form data-form="logPiRush" class="form" autocomplete="off">
-          <div class="row2">
-            <label>Member<select name="member" required><option value="">Choose a member</option>${memberOptions(users)}</select></label>
-            <label>Event<select name="event"><option value="">Not set</option>${eventOptions("")}</select></label>
-          </div>
-          <label>Performance indicator<input name="pi" required maxlength="160" placeholder="e.g. Explain the nature of promotion"></label>
-          <fieldset><legend>Rating</legend>
-            <div class="seg">${[[1, "Shaky"], [2, "Solid"], [3, "Nailed it"]].map(([v, l]) => `<label><input type="radio" name="rating" value="${v}" ${v === 2 ? "checked" : ""}><span>${l}<small>${plural(P.piRush[v - 1], "point")}</small></span></label>`).join("")}</div>
-          </fieldset>
-          <label>Date<input type="date" name="date" value="${LB.today()}" required></label>
-          <div class="actions"><button class="btn">Save PI Rush</button></div>
-        </form>
-      </section>
-      <aside class="side-block">
-        <h2>Recent PI Rushes</h2>
-        ${recent.length ? `<table class="plain"><tbody>${recent.map((p) => `<tr><td><b>${esc(nameOf(p.memberUid))}</b><br><span class="muted">${esc(p.pi)}</span></td><td class="num"><span class="stars">${"★".repeat(p.rating)}<span class="off">${"★".repeat(3 - p.rating)}</span></span></td><td class="num"><button class="del" data-action="delPi" data-id="${esc(p.id)}" aria-label="Delete">Delete</button></td></tr>`).join("")}</tbody></table>` : `<p class="muted">None yet.</p>`}
-      </aside>
-    </div>`;
-  }
   function execApprovals(pending) {
     return `<section class="block">
-      <p class="muted">When a member tells you the email they signed up with, find it here and approve it. Approved members can see the standings and the question bank.</p>
+      <p class="muted">When a member tells you the email they signed up with, find it here and approve it. Approved members can see the leaderboards and the question bank.</p>
       ${pending.length ? `<table class="plain"><thead><tr><th>Email</th><th>Name</th><th>Grade</th><th></th></tr></thead><tbody>${pending.map((u) => `<tr><td><b>${esc(u.email || "")}</b></td><td>${esc(u.displayName || "Not set")}</td><td>${esc(u.grade || "")}</td><td class="num"><button class="btn small" data-action="approve" data-id="${esc(u.uid)}">Approve</button>${isAdmin() ? ` <button class="del" data-action="delMember" data-id="${esc(u.uid)}">Remove</button>` : ""}</td></tr>`).join("")}</tbody></table>` : `<p class="empty">No one is waiting for approval.</p>`}
     </section>`;
   }
@@ -791,7 +788,7 @@
     if (tab === "settings") body = adminSettings();
     else if (tab === "members") body = adminMembers(await S.be.listUsers());
     else body = adminExport();
-    return `${pageTitle("Admin", "Point changes apply to past activity too, because standings are recalculated from the raw scores.")}${tabs([["settings", "Settings"], ["members", "Members and roles"], ["export", "Backups"]], tab, "adminTab")}${body}`;
+    return `${pageTitle("Admin", "Point changes apply to past activity too, because leaderboards are recalculated from the raw scores.")}${tabs([["settings", "Settings"], ["members", "Members and roles"], ["export", "Backups"]], tab, "adminTab")}${body}`;
   }
   function adminSettings() {
     const s = S.ui.draft || JSON.parse(JSON.stringify(S.settings));
@@ -810,11 +807,6 @@
           <label>Divide the score by${num("rpScoreDiv", P.rpScoreDiv)}<small>With 10, an 85% roleplay adds 8.5.</small></label>
           <label>Personal best bonus${num("rpPbBonus", P.rpPbBonus)}</label>
         </div>
-        <div class="row3">
-          <label>PI Rush, one star${num("pi1", P.piRush[0])}</label>
-          <label>PI Rush, two stars${num("pi2", P.piRush[1])}</label>
-          <label>PI Rush, three stars${num("pi3", P.piRush[2])}</label>
-        </div>
         <div class="row3"><label>Per first-try correct exam answer${num("examPerCorrect", P.examPerCorrect)}</label></div>
         <h3>Minimums for the skill boards</h3>
         <div class="row3">
@@ -825,7 +817,7 @@
       </section>
       <section class="panel pad">
         <div class="block-head"><h2>Seasons</h2><button type="button" class="btn secondary small" data-action="addSeason">Add season</button></div>
-        <p class="muted">The standings open on whichever season today falls in.</p>
+        <p class="muted">The leaderboards open on whichever season today falls in.</p>
         <div class="rows">${s.seasons.map((x, i) => `<div class="row-edit"><input type="hidden" name="sid${i}" value="${esc(x.id)}"><label>Name<input name="sname${i}" value="${esc(x.name)}" required></label><label>Starts<input type="date" name="sstart${i}" value="${esc(x.start)}" required></label><label>Ends<input type="date" name="send${i}" value="${esc(x.end)}" required></label><button type="button" class="del" data-action="delSeason" data-i="${i}">Remove</button></div>`).join("")}</div>
       </section>
       <section class="panel pad">
@@ -849,7 +841,7 @@
     const n = (k) => Number(fd.get(k));
     s.signupSheetUrl = String(fd.get("signupSheetUrl") || "").trim();
     s.requireApproval = !!fd.get("requireApproval");
-    s.points = { rpAttend: n("rpAttend"), rpScoreDiv: Math.max(0.1, n("rpScoreDiv")), rpPbBonus: n("rpPbBonus"), piRush: [n("pi1"), n("pi2"), n("pi3")], examPerCorrect: n("examPerCorrect") };
+    s.points = { rpAttend: n("rpAttend"), rpScoreDiv: Math.max(0.1, n("rpScoreDiv")), rpPbBonus: n("rpPbBonus"), examPerCorrect: n("examPerCorrect") };
     s.mins = { rpAvg: Math.round(n("minRp")), examAcc: Math.round(n("minExam")), improvedMin: Math.max(2, Math.round(n("minImp"))) };
     s.seasons = s.seasons.map((x, i) => ({ id: fd.get("sid" + i) || x.id, name: String(fd.get("sname" + i) || "").trim(), start: fd.get("sstart" + i), end: fd.get("send" + i) }));
     s.keyDates = (s.keyDates || []).map((k, i) => ({ label: String(fd.get("klabel" + i) || "").trim(), date: fd.get("kdate" + i) }));
@@ -872,13 +864,13 @@
         <td class="num">${self ? "" : `<button class="del" data-action="delMember" data-id="${esc(u.uid)}">Remove</button>`}</td></tr>`; }).join("")}
       </tbody></table>
     </section>
-    <p class="muted">Removing an account deletes the login and profile. Their logged roleplays stay in the database but no longer show on the standings.</p>`;
+    <p class="muted">Removing an account deletes the login and profile. Their logged roleplays stay in the database but no longer show on the leaderboards.</p>`;
   }
   function adminExport() {
     return `<section class="panel pad">
       <h2>Backups</h2>
-      <p class="muted">Download everything (settings, members, roleplays, feedback, PI Rushes, questions and exam totals) as one backup file, or this season's standings as a spreadsheet. Download a backup at the end of each season.</p>
-      <div class="actions"><button class="btn" data-action="exportJson">Download backup</button><button class="btn secondary" data-action="exportCsv">Download standings (CSV)</button></div>
+      <p class="muted">Download everything (settings, members, roleplays, feedback, questions and exam totals) as one backup file, or this season's leaderboard as a spreadsheet. Download a backup at the end of each season.</p>
+      <div class="actions"><button class="btn" data-action="exportJson">Download backup</button><button class="btn secondary" data-action="exportCsv">Download leaderboard (CSV)</button></div>
       ${S.be.mode === "demo" ? `<p class="fine">Downloads may be blocked inside the demo preview. They work on the live site.</p>` : ""}
     </section>`;
   }
@@ -932,6 +924,7 @@
       case "board": S.ui.board = id; return render();
       case "execTab": S.ui.execTab = id; return render();
       case "adminTab": S.ui.adminTab = id; return render();
+      case "practiceTab": S.ui.practiceTab = id; if (location.hash.replace(/^#\/?/, "") === "practice") render(); return;
       case "pick": return pickScore(el.dataset.field, Number(el.dataset.v));
       case "answer": return answerQ(Number(el.dataset.i));
       case "nextQ": if (S.quiz.idx + 1 < S.quiz.qs.length) { S.quiz.idx++; render(); } else finishQuiz(); return;
@@ -940,7 +933,6 @@
       case "closeQuiz": S.quiz = null; return;
       case "approve": return run(async () => { await S.be.setUserFields(id, { approved: true }); invalidate(); render(); }, "Member approved.");
       case "delMember": if (!(await ask(S.be.mode === "live" ? "Remove this member from the site? To free up their email so it can sign up again, also delete it in Firebase under Authentication, then Users." : "Remove this account?", "Remove"))) return; return run(async () => { await S.be.deleteMember(id); invalidate(); render(); }, "Account removed.");
-      case "delPi": if (!(await ask("Delete this PI Rush?", "Delete"))) return; return run(async () => { await S.be.deletePiRush(id); invalidate(); render(); }, "PI Rush deleted.");
       case "delRp": if (!(await ask("Delete this roleplay? For team roleplays, each partner's record is deleted separately.", "Delete"))) return; return run(async () => { await S.be.deleteRoleplay(id); invalidate(); render(); }, "Roleplay deleted.");
       case "delQ": if (!(await ask("Delete this question?", "Delete"))) return; return run(async () => { await S.be.deleteQuestion(id); render(); }, "Question deleted.");
       case "csvTemplate": return download("question-template.csv", "cluster,question,A,B,C,D,answer,explanation,source\nMKT,Which is NOT one of the four Ps?,Product,Price,Promotion,Profit,D,\"The four Ps are Product, Price, Place and Promotion.\",Sample\n", "text/csv");
@@ -959,9 +951,9 @@
         const d = await loadData(true);
         const season = LB.currentSeasonId(S.settings);
         const rows = LB.computeRows({ ...d, settings: S.settings, season, includeHidden: true }).sort((x, y) => y.total - x.total);
-        const head = ["name", "grade", "event", "points", "roleplay_points", "pi_rush_points", "exam_points", "roleplays", "roleplay_avg", "roleplay_best", "pi_rushes", "exam_answered", "exam_correct", "exam_accuracy", "improvement"];
-        const lines = [head.join(",")].concat(rows.map((x) => [x.name, x.grade, x.event, x.total, x.rpPoints, x.piPoints, x.examPoints, x.rpCount, x.rpAvg, x.rpBest, x.piCount, x.answered, x.correct, x.examAcc, x.improved].map((v) => csvCell(typeof v === "number" ? Math.round(v * 10) / 10 : v)).join(",")));
-        download(`standings-${season}-${LB.today()}.csv`, lines.join("\n"), "text/csv");
+        const head = ["name", "grade", "event", "points", "roleplay_points", "exam_points", "roleplays", "roleplay_avg", "roleplay_best", "exam_answered", "exam_correct", "exam_accuracy", "improvement"];
+        const lines = [head.join(",")].concat(rows.map((x) => [x.name, x.grade, x.event, x.total, x.rpPoints, x.examPoints, x.rpCount, x.rpAvg, x.rpBest, x.answered, x.correct, x.examAcc, x.improved].map((v) => csvCell(typeof v === "number" ? Math.round(v * 10) / 10 : v)).join(",")));
+        download(`leaderboard-${season}-${LB.today()}.csv`, lines.join("\n"), "text/csv");
       });
     }
   }
@@ -1006,14 +998,7 @@
         render();
       } else if (kind === "startQuiz") await startQuiz(form);
       else if (kind === "logRoleplay") await saveRoleplay(form);
-      else if (kind === "logPiRush") {
-        const member = fd.get("member"), pi = String(fd.get("pi") || "").trim();
-        if (!member || !pi) return toast("Choose a member and enter a PI.", "bad");
-        await S.be.addPiRush({ memberUid: member, event: fd.get("event") || "", pi: pi.slice(0, 160), rating: Number(fd.get("rating")) || 1, judgeUid: S.me.uid, date: fd.get("date") || LB.today() });
-        invalidate();
-        toast("PI Rush saved.");
-        render();
-      } else if (kind === "addQuestion") {
+      else if (kind === "addQuestion") {
         const options = [0, 1, 2, 3].map((i) => String(fd.get("opt" + i) || "").trim());
         let answer = Number(fd.get("answer"));
         if (!options[answer]) return toast("The option marked correct is empty.", "bad");
@@ -1099,6 +1084,10 @@
     document.addEventListener("input", onInput);
     document.addEventListener("keydown", onKey);
     window.addEventListener("hashchange", () => { if (!location.hash.includes("practice") && S.quiz && S.quiz.done) S.quiz = null; render(); window.scrollTo(0, 0); });
+    if (!window.LB_CONFIG) {
+      document.getElementById("app").innerHTML = `<main class="page"><div class="notice error"><h2>The site's settings file has a mistake</h2><p><code>docs/js/config.js</code> couldn't be read, usually because of a typo such as a missing comma, a missing quotation mark, or <code>firebaseConfig =</code> where it should say <code>firebase:</code>.</p><p>Open the file on GitHub, fix the mistake, and commit. The site will work again a few minutes later.</p></div></main>`;
+      return;
+    }
     S.be = LB.createBackend();
     S.settings = LB.mergeSettings(null);
     try { await S.be.init(); }

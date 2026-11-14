@@ -73,7 +73,6 @@
       rpAttend: 5, // points just for completing a roleplay
       rpScoreDiv: 10, // + (score % ÷ this). 85% → 8.5 pts
       rpPbBonus: 3, // + bonus when a member beats their personal best
-      piRush: [1, 2, 3], // points for PI Rush rating 1 / 2 / 3
       examPerCorrect: 0.2 // per first-attempt correct exam answer (100 Qs ≈ one roleplay)
     },
     mins: {
@@ -200,7 +199,7 @@
     ];
     const db = {
       settings: JSON.parse(JSON.stringify(LB.DEFAULT_SETTINGS)),
-      users: {}, profiles: {}, roleplays: {}, feedback: {}, pirush: {}, questions: {},
+      users: {}, profiles: {}, roleplays: {}, feedback: {}, questions: {},
       examStats: {}, seen: {}, attempts: {}, currentUid: "u_maya"
     };
     people.forEach(([uid, name, grade, event, role]) => {
@@ -292,20 +291,6 @@
       const id = "r" + rid++;
       db.roleplays[id] = { ...JSON.parse(JSON.stringify(r)), memberUid: "u_lucas" };
       db.feedback[id] = { memberUid: "u_lucas", text: db.feedback[a].text };
-    });
-
-    // PI Rush
-    let pid = 0;
-    Object.keys(db.profiles).forEach((uid) => {
-      if (uid === "u_jordan" || uid === "u_admin") return;
-      const n = Math.floor(rand() * 6);
-      for (let i = 0; i < n; i++) {
-        const ev = LB.eventByCode(db.profiles[uid].event);
-        db.pirush["p" + pid++] = {
-          memberUid: uid, event: ev.code, pi: pick(PI_POOL[ev.cluster] || PI_POOL.CORE),
-          rating: 1 + Math.floor(rand() * 3), judgeUid: pick(execs), date: dayStr(Math.floor(rand() * 18)), createdAt: now
-        };
-      }
     });
 
     // Exam stats (season 1)

@@ -45,13 +45,13 @@
     return P.rpAttend + LB.pct(r) / P.rpScoreDiv + (isPB ? P.rpPbBonus : 0);
   };
 
-  LB.computeRows = function ({ profiles, roleplays, pirush, examStats, settings, season = "all", cluster = "all", includeHidden = false }) {
+  LB.computeRows = function ({ profiles, roleplays, examStats, settings, season = "all", cluster = "all", includeHidden = false }) {
     const P = settings.points;
     const pb = LB.markPersonalBests(roleplays);
     const rows = {};
     const row = (uid) =>
       rows[uid] ||
-      (rows[uid] = { uid, rpPoints: 0, piPoints: 0, examPoints: 0, rpList: [], piCount: 0, answered: 0, correct: 0, pbCount: 0 });
+      (rows[uid] = { uid, rpPoints: 0, examPoints: 0, rpList: [], answered: 0, correct: 0, pbCount: 0 });
 
     roleplays.forEach((r) => {
       if (!LB.inSeason(r.date, season, settings)) return;
@@ -60,13 +60,6 @@
       x.rpList.push({ p: LB.pct(r), date: r.date, createdAt: r.createdAt });
       x.rpPoints += LB.roleplayPoints(r, pb[r.id], settings);
       if (pb[r.id]) x.pbCount++;
-    });
-    pirush.forEach((r) => {
-      if (!LB.inSeason(r.date, season, settings)) return;
-      if (cluster !== "all" && LB.clusterOfEvent(r.event) !== cluster) return;
-      const x = row(r.memberUid);
-      x.piPoints += Number(P.piRush[(r.rating || 1) - 1] || 0);
-      x.piCount++;
     });
     examStats.forEach((s) => {
       if (season !== "all" && s.season !== season) return;
@@ -88,7 +81,7 @@
         x.grade = prof.grade;
         x.event = prof.event;
         x.examPoints = x.correct * P.examPerCorrect;
-        x.total = x.rpPoints + x.piPoints + x.examPoints;
+        x.total = x.rpPoints + x.examPoints;
         x.rpList.sort(byTime);
         x.rpCount = x.rpList.length;
         x.rpAvg = x.rpCount ? x.rpList.reduce((a, b) => a + b.p, 0) / x.rpCount : 0;
@@ -109,8 +102,8 @@
 
   LB.BOARDS = {
     grind: {
-      label: "Grind points",
-      blurb: "Every roleplay, PI Rush and practice question adds to your total.",
+      label: "Total points",
+      blurb: "Every roleplay and practice question adds to your total.",
       eligible: (x) => x.total > 0,
       value: (x) => x.total,
       tiebreak: (x) => x.rpCount

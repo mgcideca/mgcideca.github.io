@@ -21,6 +21,7 @@
     if (!saved) return d;
     const out = { ...d, ...saved };
     out.points = { ...d.points, ...(saved.points || {}) };
+    delete out.points.piRush; // PI Rush was removed
     out.mins = { ...d.mins, ...(saved.mins || {}) };
     out.rubrics = { ...d.rubrics };
     Object.entries(saved.rubrics || {}).forEach(([k, r]) => { if (r && Array.isArray(r.criteria) && r.piBands) out.rubrics[k] = r; }); // ignore pre-2026 sheets
@@ -31,7 +32,7 @@
   class LocalBackend {
     constructor() {
       this.mode = "demo";
-      this.key = "mgci_deca_lb_demo_v2";
+      this.key = "mgci_deca_lb_demo_v3";
       this.mem = null;
     }
     async init() {
@@ -97,9 +98,6 @@
       return o;
     }
 
-    async listPiRush() { return this._list("pirush"); }
-    async addPiRush(rec) { this.mem.pirush["p_" + uid8()] = { ...rec, createdAt: Date.now() }; this._save(); }
-    async deletePiRush(id) { delete this.mem.pirush[id]; this._save(); }
 
     async listQuestions() { return this._list("questions"); }
     async addQuestions(arr) { arr.forEach((q) => (this.mem.questions["q_" + uid8()] = { ...q, createdAt: Date.now() })); this._save(); }
@@ -241,9 +239,6 @@
       return o;
     }
 
-    async listPiRush() { return this._all("pirush"); }
-    async addPiRush(rec) { await this.F.addDoc(this._col("pirush"), { ...rec, createdAt: Date.now() }); }
-    async deletePiRush(id) { await this.F.deleteDoc(this._doc("pirush", id)); }
 
     // Questions are cached in localStorage and only re-downloaded when an exec changes the bank.
     async listQuestions() {
@@ -289,10 +284,10 @@
     async listExamStats() { return (await this._all("examStats")).map(({ id, ...s }) => s); }
     async listMyAttempts() { return this._all("users", this.uid, "attempts"); }
     async exportAll() {
-      const [settings, users, roleplays, pirush, questions, examStats, feedback] = await Promise.all([
-        this.getSettings(), this.listUsers(), this.listRoleplays(), this.listPiRush(), this._all("questions"), this.listExamStats(), this.getFeedback()
+      const [settings, users, roleplays, questions, examStats, feedback] = await Promise.all([
+        this.getSettings(), this.listUsers(), this.listRoleplays(), this._all("questions"), this.listExamStats(), this.getFeedback()
       ]);
-      return { exportedAt: new Date().toISOString(), settings, users, roleplays, feedback, pirush, questions, examStats };
+      return { exportedAt: new Date().toISOString(), settings, users, roleplays, feedback, questions, examStats };
     }
   }
 
@@ -318,7 +313,8 @@
 
   LB.createBackend = function () {
     const cfg = window.LB_CONFIG || {};
-    if (cfg.firebase && !cfg.forceDemo) return new FirebaseBackend(cfg.firebase);
+    const fb = cfg.firebase || cfg.firebaseConfig; // accept either name
+    if (fb && !cfg.forceDemo) return new FirebaseBackend(fb);
     return new LocalBackend();
   };
 })();
