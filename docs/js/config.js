@@ -21,7 +21,14 @@ window.LB_CONFIG = {
   //   messagingSenderId: "1234567890",
   //   appId: "1:1234567890:web:abc123"
   // },
-  firebase: null,
+  firebaseConfig = {
+  apiKey: "AIzaSyCt0V_XHHYkL5R9LjNM2cnn_RbGUur6stw",
+  authDomain: "mgci-deca.firebaseapp.com",
+  projectId: "mgci-deca",
+  storageBucket: "mgci-deca.firebasestorage.app",
+  messagingSenderId: "293694710836",
+  appId: "1:293694710836:web:d0da5ec81e27c60e4d9661"
+},
 
   // Optional: only allow Google accounts from these email domains to sign in,
   // e.g. ["student.tdsb.on.ca", "tdsb.on.ca"]. Leave empty to allow any Google account
