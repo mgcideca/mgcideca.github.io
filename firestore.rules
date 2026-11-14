@@ -1,0 +1,114 @@
+rules_version = '2';
+
+// Security rules for the MGCI DECA Training League.
+// Deploy with:  firebase deploy --only firestore:rules
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---------- helpers ----------
+    function signedIn() { return request.auth != null; }
+    function isSelf(uid) { return signedIn() && request.auth.uid == uid; }
+    function userPath() { return /databases/$(database)/documents/users/$(request.auth.uid); }
+    function hasUser() { return signedIn() && exists(userPath()); }
+    function me() { return get(userPath()).data; }
+    function approved() { return hasUser() && me().approved == true; }
+    function isExec() { return approved() && (me().role == 'exec' || me().role == 'admin'); }
+    function isAdmin() { return approved() && me().role == 'admin'; }
+    function settingsPath() { return /databases/$(database)/documents/settings/main; }
+    function approvalRequired() {
+      return !exists(settingsPath()) || get(settingsPath()).data.get('requireApproval', true) == true;
+    }
+    // OPTIONAL: lock sign-ups to your school's email domain by adding
+    //   && request.auth.token.email.matches('.*@student[.]tdsb[.]on[.]ca$')
+    // to the `allow create` rule for /users below.
+
+    // ---------- chapter settings ----------
+    match /settings/{id} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
+    // ---------- private account record (email, role, approval) ----------
+    match /users/{uid} {
+      allow read: if isSelf(uid) || isExec();
+      allow create: if isSelf(uid)
+        && request.resource.data.keys().hasOnly(['email', 'role', 'approved', 'createdAt'])
+        && request.resource.data.role == 'member'
+        && request.resource.data.email == request.auth.token.email
+        && (request.resource.data.approved == false || !approvalRequired());
+      // Execs can approve/unapprove; only admins can change roles.
+      allow update: if isAdmin()
+        || (isExec() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['approved']));
+      allow delete: if isAdmin();
+
+      // Which exam questions this member has already answered (for first-attempt scoring)
+      match /seen/{qid} {
+        allow read, write: if isSelf(uid);
+      }
+      // Their practice exam history
+      match /attempts/{aid} {
+        allow read: if isSelf(uid) || isExec();
+        allow create: if isSelf(uid) && approved();
+      }
+    }
+
+    // ---------- public profile (shown on leaderboards) ----------
+    match /profiles/{uid} {
+      allow read: if approved() || isSelf(uid);
+      allow create, update: if isSelf(uid)
+        && request.resource.data.keys().hasOnly(['displayName', 'grade', 'event', 'showOnBoards', 'createdAt'])
+        && request.resource.data.displayName is string
+        && request.resource.data.displayName.size() > 0
+        && request.resource.data.displayName.size() <= 40;
+      allow update, delete: if isAdmin();
+    }
+
+    // ---------- roleplays & PI Rush (logged by execs) ----------
+    match /roleplays/{id} {
+      allow read: if approved();
+      allow create, update, delete: if isExec();
+    }
+    // Judge feedback is private to the member and execs
+    match /feedback/{id} {
+      allow read: if isExec() || (approved() && resource.data.memberUid == request.auth.uid);
+      allow write: if isExec();
+    }
+    match /pirush/{id} {
+      allow read: if approved();
+      allow write: if isExec();
+    }
+
+    // ---------- exam question bank (members only) ----------
+    match /questions/{id} {
+      allow read: if approved();
+      allow write: if isExec();
+    }
+    match /meta/{id} {
+      allow read: if approved();
+      allow write: if isExec();
+    }
+
+    // ---------- exam totals per member per season ----------
+    // Members update their own totals after each practice exam; these checks stop
+    // obviously impossible values (max 100 new questions per exam, correct <= answered).
+    match /examStats/{sid} {
+      allow read: if approved();
+      allow create: if approved()
+        && request.resource.data.uid == request.auth.uid
+        && sid == request.auth.uid + '_' + request.resource.data.season
+        && request.resource.data.answered is number
+        && request.resource.data.answered <= 100
+        && request.resource.data.correct >= 0
+        && request.resource.data.correct <= request.resource.data.answered;
+      allow update: if approved()
+        && resource.data.uid == request.auth.uid
+        && request.resource.data.uid == resource.data.uid
+        && request.resource.data.season == resource.data.season
+        && request.resource.data.answered - resource.data.answered >= 0
+        && request.resource.data.answered - resource.data.answered <= 100
+        && request.resource.data.correct - resource.data.correct >= 0
+        && request.resource.data.correct - resource.data.correct <= request.resource.data.answered - resource.data.answered;
+      allow delete: if isAdmin();
+    }
+  }
+}
