@@ -14,6 +14,11 @@
     if (!domainAllowed(email)) throw new Error(`Use an email ending in ${(window.LB_CONFIG.allowedEmailDomains || []).join(" or ")}.`);
     if (String(pw || "").length < 6) throw new Error("Use a password with at least 6 characters.");
   };
+  // The feedback sheet is private (member + execs). Any filled-in field counts.
+  const hasText = (v) => (typeof v === "string" ? v.trim().length > 0 : Array.isArray(v) ? v.some(hasText) : v && typeof v === "object" ? Object.values(v).some(hasText) : false);
+  const hasFeedback = (fb) => !!fb && hasText(fb);
+  const cleanFeedback = (fb) => JSON.parse(JSON.stringify(fb || {}));
+  const readFeedback = (f) => ({ text: "", improve: "", situation: "", intro: "", conclusion: "", creative: "", questions: [], notes: { pi: [], cr: [] }, sections: {}, ...f, memberUid: undefined });
   const uid8 = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
 
   LB.mergeSettings = function (saved) {
@@ -32,7 +37,7 @@
   class LocalBackend {
     constructor() {
       this.mode = "demo";
-      this.key = "mgci_deca_lb_demo_v3";
+      this.key = "mgci_deca_lb_demo_v5";
       this.mem = null;
     }
     async init() {
@@ -83,18 +88,19 @@
     async deleteMember(uid) { delete this.mem.users[uid]; delete this.mem.profiles[uid]; this._save(); }
 
     async listRoleplays() { return this._list("roleplays"); }
-    async addRoleplays(records, feedbackText) {
+    // fb = { text: overall feedback, sections: { "Solution": "...", ... } } (private to member + execs)
+    async addRoleplays(records, fb) {
       records.forEach((r) => {
         const id = "r_" + uid8();
         this.mem.roleplays[id] = { ...r, createdAt: Date.now() };
-        if (feedbackText) this.mem.feedback[id] = { memberUid: r.memberUid, text: feedbackText };
+        if (hasFeedback(fb)) this.mem.feedback[id] = { ...cleanFeedback(fb), memberUid: r.memberUid };
       });
       this._save();
     }
     async deleteRoleplay(id) { delete this.mem.roleplays[id]; delete this.mem.feedback[id]; this._save(); }
     async getFeedback(memberUid) {
       const o = {};
-      Object.entries(this.mem.feedback).forEach(([id, f]) => { if (!memberUid || f.memberUid === memberUid) o[id] = f.text; });
+      Object.entries(this.mem.feedback).forEach(([id, f]) => { if (!memberUid || f.memberUid === memberUid) o[id] = readFeedback(clone(f)); });
       return o;
     }
 
@@ -215,12 +221,12 @@
     }
 
     async listRoleplays() { return this._all("roleplays"); }
-    async addRoleplays(records, feedbackText) {
+    async addRoleplays(records, fb) {
       const b = this.F.writeBatch(this.db);
       records.forEach((r) => {
         const ref = this.F.doc(this._col("roleplays"));
         b.set(ref, { ...r, createdAt: Date.now() });
-        if (feedbackText) b.set(this._doc("feedback", ref.id), { memberUid: r.memberUid, text: feedbackText });
+        if (hasFeedback(fb)) b.set(this._doc("feedback", ref.id), { ...cleanFeedback(fb), memberUid: r.memberUid });
       });
       await b.commit();
     }
@@ -235,7 +241,7 @@
       const q = memberUid ? F.query(this._col("feedback"), F.where("memberUid", "==", memberUid)) : this._col("feedback");
       const s = await F.getDocs(q);
       const o = {};
-      s.docs.forEach((d) => (o[d.id] = d.data().text));
+      s.docs.forEach((d) => { o[d.id] = readFeedback(d.data()); });
       return o;
     }
 

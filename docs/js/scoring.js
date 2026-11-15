@@ -159,6 +159,11 @@
   };
   LB.bandMax = (str) => { const b = LB.parseBands(str); return b[b.length - 1][1]; };
   LB.bandIndex = (score, bands) => { const i = bands.findIndex(([lo, hi]) => score >= lo && score <= hi); return i < 0 ? (score > bands[bands.length - 1][1] ? bands.length - 1 : 0) : i; };
+  // Presentation time target (minutes) for an event type, with defaults for older saved settings
+  LB.timeLimit = (type, settings) => {
+    const r = (settings.rubrics || {})[type] || {};
+    return Number(r.timeLimitMin) || ((LB.DEFAULT_SETTINGS.rubrics[type] || {}).timeLimitMin) || 10;
+  };
   LB.rubricMax = (t) => t.piCount * LB.bandMax(t.piBands) + t.criteria.reduce((a, c) => a + LB.bandMax(c.bands), 0);
 
   // Section averages (% of available points): PIs, Solution, Career competencies, Overall impression

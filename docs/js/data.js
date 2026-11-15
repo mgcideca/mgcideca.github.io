@@ -96,6 +96,7 @@
       principles: {
         label: "Principles",
         participants: 1,
+        timeLimitMin: 10,
         piCount: 4,
         piBands: "0-3, 4-7, 8-11, 12",
         criteria: criteriaSet("0-3, 4-6, 7-9, 10")
@@ -103,6 +104,7 @@
       series: {
         label: "Individual Series",
         participants: 1,
+        timeLimitMin: 10,
         piCount: 5,
         piBands: "0-3, 4-6, 7-9, 10",
         criteria: criteriaSet("0-2, 3-5, 6-7, 8")
@@ -110,6 +112,7 @@
       tdm: {
         label: "Team Decision Making",
         participants: 2,
+        timeLimitMin: 15,
         piCount: 5,
         piBands: "0-3, 4-6, 7-9, 10",
         criteria: criteriaSet("0-2, 3-5, 6-7, 8")
@@ -228,6 +231,41 @@
       "Covered every PI clearly. Next step: a memorable closing line and a recap of benefits.",
       "Solid knowledge, but explain the 'why' behind each recommendation, not just the 'what'."
     ];
+    const TITLES = {
+      CORE: ["Coffee shop customer complaint", "Explaining business ownership to a new owner", "Training a new hire on customer service"],
+      MKT: ["Ski resort loyalty program", "Launching a plant-based snack line", "Social media plan for a local gym", "Repositioning a sneaker brand"],
+      FIN: ["Explaining a budget variance to a client", "Retirement savings plan for a young client", "Choosing between leasing and buying equipment"],
+      ENT: ["Funding options for a food truck", "Pitching a campus delivery app", "Expanding a craft brewery"],
+      HT: ["Overbooked hotel weekend", "Designing a family travel package", "Recovering from a bad restaurant review"],
+      BMA: ["Reducing turnover at a call centre", "Handling a contract dispute with a supplier", "Rolling out a new HR policy"],
+      PFL: ["First paycheque budgeting", "Choosing a first credit card"]
+    };
+    const SHEETS = [
+      { situation: "Participant is a new marketing manager\nJudge is the owner of the business\nSales have dropped for two quarters\nMust recommend a plan before the busy season",
+        intro: "Firm handshake and good eye contact\nRestated the problem clearly\nCould preview your solution in the introduction",
+        creative: "Three-step plan with a catchy name\nSketched a simple chart of expected sales",
+        conclusion: "Recapped each PI\nEnd by explaining why your plan fits this business",
+        questions: [{ q: "How would you measure whether the plan worked?", notes: "Good answer: tracking monthly sales and repeat customers\nCould add a specific target" }, { q: "What would you do if the budget were cut in half?", notes: "Prioritized the cheapest ideas, nice\nTake a moment before answering so you sound confident" }],
+        went: "Strong structure from start to finish", improve: "Connect every PI back to the case\nUse the full time: aim for about 8 minutes before questions" },
+      { situation: "Participant is a customer service lead\nJudge is the regional manager\nOnline reviews mention slow responses\nMust propose a policy to fix response times",
+        intro: "Clear greeting and introduction of your role\nExplained which PIs you would cover",
+        creative: "A 24-hour response promise\nCustomer-of-the-month idea",
+        conclusion: "Short but clear\nCould restate the main benefit to the business",
+        questions: [{ q: "Is an automated reply enough for customers?", notes: "Picked a side and defended it, great\nGive one example to support your answer" }],
+        went: "Realistic, practical ideas\nCalm and professional tone", improve: "Vary your tone and speed\nUse hand gestures to emphasize key points" },
+      { situation: "Participant is a financial consultant\nJudge is a client opening a small business\nClient is unsure how to fund equipment\nMust compare options and recommend one",
+        intro: "Good energy\nStated the client's goal in your own words",
+        creative: "Simple comparison table of lease versus buy",
+        conclusion: "Clear recommendation\nThanked the judge and summarized next steps",
+        questions: [{ q: "What risks come with taking a loan?", notes: "Mentioned interest costs and cash flow, good\nCould mention what happens if sales are slow" }, { q: "Why not just use savings?", notes: "Answer was a bit short\nExplain the value of keeping an emergency cushion" }],
+        went: "Explained financial terms simply\nEvery PI tied to the client's situation", improve: "Slow down when explaining numbers\nMake the conclusion a little longer" }
+    ];
+    const SEC_FB = {
+      pi: ["You covered every PI, but PI 3 needed a concrete example.", "Strong explanation of the first two PIs. Tie the last one back to the judge's problem.", "Name each PI out loud as you address it so the judge can check it off."],
+      sol: ["Practical idea, but give one number to show it would work.", "Creative solution. Explain how you would measure success.", "The solution was safe. Push for something more original."],
+      car: ["Clear communication. Slow down when you explain your reasoning.", "Good critical thinking. Weigh one downside before deciding.", "Answered the judge's questions well. Make eye contact more often."],
+      ovr: ["Confident and professional throughout.", "Strong handshake and opening. Finish with a clearer close.", "Good poise. Stand up straighter at the start."]
+    };
     const execs = ["u_e1", "u_e2", "u_e3", "u_admin"];
     const judgeBias = { u_e1: 0, u_e2: 0.06, u_e3: -0.04, u_admin: 0 }; // Priya scores generously, Marcus harshly
     const dayStr = (d) => { const dt = new Date(Date.UTC(2026, 9, 27)); dt.setUTCDate(dt.getUTCDate() + d); return dt.toISOString().slice(0, 10); };
@@ -261,11 +299,18 @@
       const total = [...pis, ...criteria].reduce((a, x) => a + x.score, 0);
       const maxTotal = [...pis, ...criteria].reduce((a, x) => a + x.max, 0);
       const id = "r" + rid++;
+      const secs = ev.type === "tdm" ? 600 + Math.floor(rand() * 300) : 420 + Math.floor(rand() * 200);
       db.roleplays[id] = {
-        memberUid: uid, event, area: pick(AREAS[ev.cluster] || AREAS.CORE), date: dayStr(day), mode: rand() > 0.5 ? "online" : "in-person",
-        pis, criteria, total, maxTotal, judgeUid: judge, teamId: teamId || null, createdAt: now - (30 - day) * 864e5
+        memberUid: uid, event, title: pick(TITLES[ev.cluster] || TITLES.CORE), area: pick(AREAS[ev.cluster] || AREAS.CORE), date: dayStr(day), mode: rand() > 0.5 ? "online" : "in-person",
+        durationSec: secs, pis, criteria, total, maxTotal, judgeUid: judge, teamId: teamId || null, createdAt: now - (30 - day) * 864e5
       };
-      db.feedback[id] = { memberUid: uid, text: pick(FEEDBACK) };
+      const S2 = pick(SHEETS);
+      db.feedback[id] = {
+        memberUid: uid,
+        situation: S2.situation, intro: S2.intro, creative: S2.creative, conclusion: S2.conclusion,
+        questions: S2.questions, text: S2.went + "\n" + pick(FEEDBACK), improve: S2.improve,
+        notes: { pi: pis.map((_, i) => (rand() > 0.25 ? pick(SEC_FB.pi) : "")), cr: criteria.map((c) => (rand() > 0.3 ? pick(c.section === "Solution" ? SEC_FB.sol : c.section === "Career competencies" ? SEC_FB.car : SEC_FB.ovr) : "")) }
+      };
       return id;
     }
 
@@ -290,7 +335,7 @@
       const r = db.roleplays[a];
       const id = "r" + rid++;
       db.roleplays[id] = { ...JSON.parse(JSON.stringify(r)), memberUid: "u_lucas" };
-      db.feedback[id] = { memberUid: "u_lucas", text: db.feedback[a].text };
+      db.feedback[id] = { ...JSON.parse(JSON.stringify(db.feedback[a])), memberUid: "u_lucas" };
     });
 
     // Exam stats (season 1)

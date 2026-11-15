@@ -4,6 +4,7 @@
   const CFG = window.LB_CONFIG || {};
   const S = {
     be: null, me: null, settings: null, data: null, dataAt: 0, quiz: null, renderTok: 0,
+    timer: { running: false, startedAt: 0, elapsed: 0, iv: null },
     ui: { practiceTab: "exams", authMode: "signin", authEmail: "", board: "grind", season: null, cluster: "all", execTab: "roleplay", adminTab: "settings", qCluster: "all", qSearch: "", draft: null }
   };
 
@@ -23,6 +24,17 @@
   const evName = (code) => (LB.eventByCode(code) || {}).name || "";
   const memberMeta = (x) => [x.grade ? `Grade ${x.grade}` : "", x.event || ""].filter(Boolean).join(", ");
   const bandName = (i) => LB.BAND_NAMES[i] || "";
+  const mmss = (sec) => `${Math.floor(sec / 60)}:${String(Math.floor(sec % 60)).padStart(2, "0")}`;
+  const parseTime = (str) => {
+    const t = String(str || "").trim();
+    if (!t) return null;
+    let m = t.match(/^(\d{1,2}):([0-5]\d)$/);
+    if (m) return Number(m[1]) * 60 + Number(m[2]);
+    m = t.match(/^(\d{1,2})$/);
+    if (m) return Number(m[1]) * 60;
+    return NaN;
+  };
+  const rpTitle = (r) => r.title || `${evName(r.event) || evCode(r.event)} roleplay`;
 
   function toast(msg, kind = "ok") {
     let t = document.getElementById("toast");
@@ -110,14 +122,16 @@
     if (S.me.error) { root.innerHTML = shell(`<div class="notice error"><h2>The site couldn't load your account</h2><p>${esc(S.me.error)}</p><p>Refresh the page. If it keeps happening, check that the Firestore rules were deployed (see README).</p></div>`, ""); return; }
     if (!S.me.approved) { root.innerHTML = shell(pagePending(), ""); return; }
     let r = (location.hash.replace(/^#\/?/, "") || "home").split("?")[0];
-    if (!PAGES[r] || (r === "exec" && !isExec()) || (r === "admin" && !isAdmin())) r = "home";
+    let reportId = null;
+    if (r.startsWith("report-")) { reportId = r.slice(7); r = "report"; }
+    else if (!PAGES[r] || (r === "exec" && !isExec()) || (r === "admin" && !isAdmin())) r = "home";
     let done = false;
     setTimeout(() => { if (!done && tok === S.renderTok) root.innerHTML = shell(`<div class="loading">Loading</div>`, r); }, 180);
     try {
-      const html = await PAGES[r]();
+      const html = r === "report" ? await pageReport(reportId) : await PAGES[r]();
       done = true;
       if (tok !== S.renderTok) return;
-      root.innerHTML = shell(html, r);
+      root.innerHTML = shell(html, r === "report" ? (S.ui.reportFrom || "me") : r);
       afterRender(r);
     } catch (e) {
       done = true;
@@ -126,6 +140,7 @@
     }
   }
   function afterRender(r) {
+    if (r === "report") window.scrollTo(0, 0);
     if (r === "exec" && S.ui.execTab === "roleplay") updateSheetTotals();
     if (r === "practice" && S.quiz && !S.quiz.done) { const el = document.querySelector(".quiz"); if (el) el.focus({ preventScroll: true }); }
   }
@@ -287,6 +302,7 @@
         </section>
         <section class="side-block">
           <h2>Recent roleplays</h2>
+        <p class="muted">Select a participant to open the full report.</p>
           ${activity.length ? `<ul class="feed">${activity.map((a) => `<li><span><b>${esc(d.profiles[a.uid].displayName)}</b> did ${a.team ? "a team" : /^[AEFHILMNORSX]/.test(evCode(a.event)) ? "an" : "a"} ${esc(evCode(a.event))} roleplay</span><time>${fmtDate(a.date)}</time></li>`).join("")}</ul>` : `<p class="muted">Nothing logged yet.</p>`}
         </section>
       </aside>
@@ -538,7 +554,7 @@
 
     <section class="block">
       <div class="block-head"><h2>Roleplays</h2><a href="${esc(s.signupSheetUrl)}" target="_blank" rel="noopener">Book another roleplay</a></div>
-      ${myRps.length ? `<div class="rp-list">${myRps.map((r) => rpCard(r, feedback[r.id], pb[r.id])).join("")}</div>` : `<p class="empty">No roleplays yet. Sign up on the roleplay sheet to do one with an exec.</p>`}
+      ${myRps.length ? `<p class="muted">Select a roleplay to see the full report from your judge.</p><div class="rp-list">${myRps.map((r) => rpRow(r, feedback[r.id], pb[r.id], "me")).join("")}</div>` : `<p class="empty">No roleplays yet. Sign up on the roleplay sheet to do one with an exec.</p>`}
     </section>
 
       <section class="block">
@@ -546,29 +562,118 @@
         ${attempts.length ? `<table class="plain"><thead><tr><th>Date</th><th>Cluster</th><th class="num">Score</th><th class="num">Points</th></tr></thead><tbody>${attempts.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)).slice(0, 15).map((a) => `<tr><td>${fmtDate(a.date)}</td><td>${esc(a.cluster === "all" ? "Mixed" : LB.clusterName(a.cluster))}</td><td class="num">${a.correct}/${a.total}</td><td class="num">${fmt(a.firstCorrect * s.points.examPerCorrect)}</td></tr>`).join("")}</tbody></table>` : `<p class="muted">No practice exams yet. <a href="#practice" data-action="practiceTab" data-id="exams">Start one</a>.</p>`}
       </section>`;
   }
-  function rpCard(r, fb, isPB) {
+  function rpRow(r, fb, isPB, from) {
     const p = LB.pct(r);
-    const groups = {};
-    (r.criteria || []).forEach((x) => (groups[x.section] = groups[x.section] || []).push(x));
-    const row = (label, x) => `<tr><td>${esc(label)}</td><td class="lvl lvl-${x.band ?? ""}">${esc(bandName(x.band))}</td><td class="num">${x.score}/${x.max}</td></tr>`;
-    return `<details class="rp">
-      <summary>
-        <time>${fmtDate(r.date)}</time>
-        <span class="rp-ev"><b>${esc(evCode(r.event))}</b> ${esc(r.area || evName(r.event))}${r.teamId ? ", team" : ""}</span>
-        ${isPB ? `<span class="pb">Personal best</span>` : ""}
-        <span class="rp-score">${fmt(p)}%</span>
-      </summary>
-      <div class="rp-body">
-        ${fb ? `<blockquote class="feedback"><p>${esc(fb)}</p><cite>${esc(nameOf(r.judgeUid))}</cite></blockquote>` : `<p class="muted">Judged by ${esc(nameOf(r.judgeUid))}.</p>`}
-        <table class="plain breakdown">
-          <tbody><tr class="sec"><th colspan="3">Performance indicators</th></tr>
-          ${(r.pis || []).map((x, i) => row(x.name || `PI ${i + 1}`, x)).join("")}
-          ${Object.entries(groups).map(([sec, items]) => `<tr class="sec"><th colspan="3">${esc(sec)}</th></tr>${items.map((x) => row(x.name, x)).join("")}`).join("")}
-          <tr class="total"><td>Total</td><td></td><td class="num">${r.total}/${r.maxTotal}</td></tr></tbody>
-        </table>
-      </div>
-    </details>`;
+    const note = fb && fb.text ? fb.text : "";
+    return `<a class="rp-row" href="#report-${esc(r.id)}" data-action="openReport" data-from="${from}">
+      <time>${fmtDate(r.date)}</time>
+      <span class="rp-main"><b>${esc(rpTitle(r))}</b><span class="rp-sub">${esc(evCode(r.event))}${r.area ? `, ${esc(r.area)}` : ""}${r.teamId ? ", team" : ""}${r.durationSec != null ? `, ${mmss(r.durationSec)}` : ""}</span>${note ? `<span class="rp-note">${esc(note.length > 110 ? note.slice(0, 107) + "…" : note)}</span>` : ""}</span>
+      ${isPB ? `<span class="pb">Personal best</span>` : ""}
+      <span class="rp-score">${fmt(p)}%</span>
+      <span class="rp-go" aria-hidden="true">›</span>
+    </a>`;
   }
+
+  /* ---------------- ROLEPLAY REPORT ---------------- */
+  // Turn "one point per line" text into bullets. Lines starting with spaces or "-" under a point become sub-points.
+  function bullets(text) {
+    const lines = String(text || "").split(/\r?\n/).filter((l) => l.trim());
+    if (!lines.length) return "";
+    let html = "<ul class=\"pts\">", open = false;
+    lines.forEach((l, i) => {
+      const sub = i > 0 && /^(\s{2,}|\t|\s*[-–]\s)/.test(l) && !/^[•*]/.test(l.trim());
+      const t = esc(l.trim().replace(/^[-–•*●○]\s*/, ""));
+      if (sub) { html += (open ? "" : "<ul>") + `<li>${t}</li>`; open = true; }
+      else { if (open) { html += "</ul></li>"; open = false; } else if (i) html += "</li>"; html += `<li>${t}`; }
+    });
+    return html + (open ? "</ul></li>" : "</li>") + "</ul>";
+  }
+  async function pageReport(id) {
+    const d = await loadData();
+    const r = d.roleplays.find((x) => x.id === id);
+    const backTo = S.ui.reportFrom === "exec" && isExec() ? ["exec", "Back to Exec tools"] : ["me", "Back to My Progress"];
+    const back = `<p class="back"><a href="#${backTo[0]}">‹ ${backTo[1]}</a></p>`;
+    if (!r) return `${back}<div class="notice error"><h2>This roleplay couldn't be found</h2><p>It may have been deleted by an exec.</p></div>`;
+    if (r.memberUid !== S.me.uid && !isExec()) return `${back}<div class="notice error"><h2>This report belongs to another member</h2><p>You can open reports for your own roleplays from My Progress.</p></div>`;
+    const feedback = await S.be.getFeedback(r.memberUid);
+    const fb = feedback[r.id] || {};
+    const notes = fb.notes || { pi: [], cr: [] }, oldSec = fb.sections || {};
+    const pb = LB.markPersonalBests(d.roleplays)[r.id];
+    const p = LB.pct(r);
+    const partner = r.teamId ? d.roleplays.find((x) => x.teamId === r.teamId && x.memberUid !== r.memberUid) : null;
+    const mine = d.roleplays.filter((x) => x.memberUid === r.memberUid).sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : (a.createdAt || 0) - (b.createdAt || 0)));
+    const idx = mine.findIndex((x) => x.id === r.id);
+    const prev = idx > 0 ? mine[idx - 1] : null;
+    const ev = LB.eventByCode(r.event);
+    const limit = r.timeLimitMin || (ev ? LB.timeLimit(ev.type, S.settings) : 10);
+    const tv = r.durationSec != null ? timeVsTarget(r.durationSec, limit) : null;
+
+    const block = (title, body, cls = "") => (body ? `<section class="rep-block ${cls}"><h2>${title}</h2>${body}</section>` : "");
+    const item = (label, x, note) => `<div class="rep-item">
+        <div class="rep-item-head"><h3>${label}</h3><span class="lvl lvl-${x.band ?? ""}">${esc(bandName(x.band))}</span><span class="rep-item-score"><b>${x.score}</b>/${x.max}</span></div>
+        ${note ? bullets(note) : ""}
+      </div>`;
+    const piHtml = (r.pis || []).map((x, i) => item(`PI ${i + 1}${x.name ? `: ${esc(x.name)}` : ""}`, x, notes.pi?.[i])).join("") + (oldSec["Performance indicators"] ? bullets(oldSec["Performance indicators"]) : "");
+    const piGot = (r.pis || []).reduce((a, x) => a + x.score, 0), piMax = (r.pis || []).reduce((a, x) => a + x.max, 0);
+    const groups = [];
+    (r.criteria || []).forEach((x, j) => { let g = groups.find((y) => y.name === x.section); if (!g) groups.push((g = { name: x.section, items: [] })); g.items.push({ ...x, j }); });
+    const critHtml = groups.map((g) => {
+      const got = g.items.reduce((a, x) => a + x.score, 0), max = g.items.reduce((a, x) => a + x.max, 0);
+      return `<section class="rep-block">
+        <div class="rep-head"><h2>${esc(g.name)}</h2><span class="rep-sub"><b>${got}</b>/${max}</span></div>
+        ${g.items.map((x) => item(esc(x.name), x, notes.cr?.[x.j])).join("")}
+        ${oldSec[g.name] ? bullets(oldSec[g.name]) : ""}
+      </section>`;
+    }).join("");
+    const qs = (fb.questions || []).filter((q) => q.q || q.notes);
+
+    const facts = [
+      ["Event", `${esc(evCode(r.event))}, ${esc(evName(r.event))}`],
+      ["Instructional area", r.area ? esc(r.area) : "Not recorded"],
+      ["Date", esc(fmtDate(r.date))],
+      ["Time", tv ? `${mmss(r.durationSec)} <span class="tv ${tv.cls}">${tv.text}</span>` : "Not recorded"],
+      ["Format", r.mode === "in-person" ? "In person" : "Online"],
+      ["Judge", esc(nameOf(r.judgeUid))]
+    ];
+    if (partner) facts.push(["Partner", esc(nameOf(partner.memberUid))]);
+    if (r.memberUid !== S.me.uid) facts.unshift(["Participant", esc(nameOf(r.memberUid))]);
+
+    return `${back}
+    <article class="report">
+      <header class="report-head">
+        <div>
+          <h1>${esc(rpTitle(r))}</h1>
+          ${pb ? `<span class="pb">Personal best</span>` : ""}
+        </div>
+        <div class="report-score">
+          <span class="big">${r.total}<small>/${r.maxTotal}</small></span>
+          <span>${fmt(p)}%${prev ? `, <span class="${p >= LB.pct(prev) ? "up" : "down"}">${p >= LB.pct(prev) ? "+" : "−"}${fmt(Math.abs(p - LB.pct(prev)))}</span> since the previous roleplay` : ""}</span>
+        </div>
+      </header>
+      <dl class="report-facts">${facts.map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join("")}</dl>
+      ${block("Situation", bullets(fb.situation))}
+      ${block("Introduction", bullets(fb.intro))}
+      <section class="rep-block">
+        <div class="rep-head"><h2>Performance indicators</h2><span class="rep-sub"><b>${piGot}</b>/${piMax}</span></div>
+        ${piHtml}
+      </section>
+      ${block("Creative elements", bullets(fb.creative))}
+      ${block("Conclusion", bullets(fb.conclusion))}
+      ${qs.length ? `<section class="rep-block"><h2>Judge's questions</h2>${qs.map((q, i) => `<div class="rep-q"><h3>${i + 1}. ${esc(q.q || "Question")}</h3>${bullets(q.notes)}</div>`).join("")}</section>` : ""}
+      ${critHtml}
+      ${fb.text || fb.improve ? `<section class="rep-block rep-overall">
+        <h2>Overall feedback</h2>
+        <div class="rep-two">
+          ${fb.text ? `<div class="rep-good"><h3>What went well</h3>${bullets(fb.text)}</div>` : ""}
+          ${fb.improve ? `<div class="rep-fix"><h3>Things to do better</h3>${bullets(fb.improve)}</div>` : ""}
+        </div>
+        <p class="fine">From ${esc(nameOf(r.judgeUid))}</p>
+      </section>` : ""}
+      <div class="report-total"><span>Total score</span><span><b>${r.total}</b>/${r.maxTotal} (${fmt(p)}%)</span></div>
+      ${S.be.mode === "live" ? `<div class="actions no-print"><button class="btn secondary" data-action="printReport">Print or save as PDF</button></div>` : ""}
+    </article>`;
+  }
+
   function sparkline(vals) {
     const w = 360, h = 120, padX = 10, padY = 18;
     const min = Math.max(0, Math.floor((Math.min(...vals) - 8) / 10) * 10), max = Math.min(100, Math.ceil((Math.max(...vals) + 4) / 10) * 10);
@@ -603,8 +708,12 @@
       .map((u) => `<option value="${esc(u.uid)}" data-event="${esc(u.event || "")}" ${selected === u.uid ? "selected" : ""}>${esc(u.displayName)}${u.event ? ` (${esc(u.event)})` : ""}</option>`).join("");
   }
   function execRoleplay(users) {
+    const area = (name, label, hint, rows = 3) => `<label>${label}<textarea name="${name}" rows="${rows}" maxlength="2000" placeholder="${esc(hint)}"></textarea></label>`;
     return `<form data-form="logRoleplay" class="scoresheet" autocomplete="off">
+      <p class="sheet-intro muted">Fill this in as the roleplay happens, in the same order as the presentation. In every comment box, put one point per line: each line becomes a bullet in the member's report.</p>
       <section class="panel pad sheet-meta">
+        <h2>Roleplay details</h2>
+        <label class="wide">Roleplay name<input name="title" maxlength="100" required placeholder="e.g. 2013 State Event 1 (Vandelay Flooring)"><small>The case and where it came from, so the member can find it later.</small></label>
         <div class="row3">
           <label>Participant<select name="member" required data-change="rpMember"><option value="">Choose a member</option>${memberOptions(users)}</select></label>
           <label>Event<select name="event" required data-change="rpEvent"><option value="">Choose an event</option>${eventOptions("")}</select></label>
@@ -615,14 +724,106 @@
           <label>Date<input type="date" name="date" value="${LB.today()}" required></label>
           <label>Format<select name="mode"><option value="online">Online</option><option value="in-person">In person</option></select></label>
         </div>
+        <p class="fine">Judge: ${esc(S.me.displayName)}</p>
       </section>
-      <div id="rubric"><p class="empty">Choose an event to load its judge's evaluation form.</p></div>
-      <section class="panel pad">
-        <label>Feedback for the participant<textarea name="feedback" rows="3" placeholder="What worked, and the one thing to fix before the next roleplay"></textarea><small>Only the participant and execs can read this.</small></label>
+      <section class="panel pad timer-panel">
+        <div>
+          <h2>Time</h2>
+          <p class="muted">Start when the participant begins presenting and pause when they finish. You can also type the time, like 8:45.</p>
+          <p class="time-target" id="timeTarget">Choose an event to see the time limit.</p>
+        </div>
+        <div class="stopwatch">
+          <label class="time-field"><span class="sr">Time taken (minutes:seconds)</span><input name="time" id="rpTime" value="${S.timer.elapsed || S.timer.running ? mmss(currentElapsed()) : ""}" placeholder="0:00" inputmode="numeric" data-change="timeTyped" aria-label="Time taken in minutes and seconds"></label>
+          <div class="actions">
+            <button type="button" class="btn" data-action="timerToggle" id="timerBtn">${S.timer.running ? "Pause" : S.timer.elapsed ? "Resume" : "Start"}</button>
+            <button type="button" class="btn secondary" data-action="timerReset">Reset</button>
+          </div>
+        </div>
+      </section>
+      <section class="panel pad sheet-step">
+        <h2><span class="step">1</span>Situation</h2>
+        ${area("situation", "Case summary", "Who the participant is, who the judge is, and what they need to do", 4)}
+      </section>
+      <section class="panel pad sheet-step">
+        <h2><span class="step">2</span>Introduction</h2>
+        ${area("intro", "Comments on the introduction", "Handshake, restating the problem, previewing the PIs and the solution")}
+      </section>
+      <div id="rubricPis" class="sheet-step-wrap"><p class="empty">Choose an event to load its judge's evaluation form.</p></div>
+      <section class="panel pad sheet-step">
+        <h2><span class="step">4</span>Creative elements</h2>
+        ${area("creative", "Creative elements the participant used", "Acronyms, visuals, graphs, slogans, original ideas")}
+      </section>
+      <section class="panel pad sheet-step">
+        <h2><span class="step">5</span>Conclusion</h2>
+        ${area("conclusion", "Comments on the conclusion", "Recap of the PIs and solution, why it fits the case, closing")}
+      </section>
+      <section class="panel pad sheet-step">
+        <div class="block-head"><h2><span class="step">6</span>Judge's questions</h2><button type="button" class="btn secondary small" data-action="addQuestionRow">Add a question</button></div>
+        <div id="questionRows">${[0, 1].map(questionRow).join("")}</div>
+      </section>
+      <div id="rubricCrit" class="sheet-step-wrap"></div>
+      <section class="panel pad sheet-step">
+        <h2><span class="step">8</span>Overall feedback</h2>
+        <div class="row2">
+          ${area("feedback", "What went well", "Strengths to keep doing", 5)}
+          ${area("improve", "Things to do better", "The most important fixes before the next roleplay", 5)}
+        </div>
+        <p class="fine">Feedback is private: only the participant and execs can read it.</p>
       </section>
       <div class="sheet-foot"><span id="rbTotal" class="sheet-total">Total score</span><button class="btn">Save roleplay</button></div>
     </form>`;
   }
+  function questionRow(i) {
+    return `<div class="q-row"><label>Question ${i + 1}<input name="q_text" maxlength="300" placeholder="What did the judge ask?"></label><label>How they answered, and feedback<textarea name="q_notes" rows="2" maxlength="1000" placeholder="Their answer, what was good, what to improve"></textarea></label></div>`;
+  }
+  // ---- stopwatch
+  function currentElapsed() { const t = S.timer; return Math.floor((t.elapsed + (t.running ? Date.now() - t.startedAt : 0)) / 1000); }
+  function timeVsTarget(sec, limitMin) {
+    const lim = limitMin * 60, d = sec - lim;
+    if (Math.abs(d) < 15) return { cls: "ok", text: `right on the ${mmss(lim)} limit` };
+    return d > 0 ? { cls: "over", text: `${mmss(d)} over the ${mmss(lim)} limit` } : { cls: "under", text: `${mmss(-d)} under the ${mmss(lim)} limit` };
+  }
+  function paintTarget() {
+    const el = document.getElementById("timeTarget");
+    if (!el) return;
+    const ev = LB.eventByCode((document.querySelector('[name="event"]') || {}).value);
+    if (!ev) { el.textContent = "Choose an event to see the time limit."; el.className = "time-target"; return; }
+    const lim = LB.timeLimit(ev.type, S.settings);
+    const v = parseTime((document.getElementById("rpTime") || {}).value);
+    if (S.timer.running || (v !== null && Number.isFinite(v) && v > 0)) {
+      const st = timeVsTarget(S.timer.running ? currentElapsed() : v, lim);
+      el.textContent = `Time limit ${mmss(lim * 60)}: ${st.text}`;
+      el.className = "time-target " + st.cls;
+    } else { el.textContent = `Time limit for ${ev.code}: ${mmss(lim * 60)}`; el.className = "time-target"; }
+  }
+  function timerPaint() {
+    const el = document.getElementById("rpTime");
+    if (!el) { if (!S.timer.running && S.timer.iv) { clearInterval(S.timer.iv); S.timer.iv = null; } return; }
+    if (S.timer.running) el.value = mmss(currentElapsed());
+    const b = document.getElementById("timerBtn");
+    if (b) b.textContent = S.timer.running ? "Pause" : S.timer.elapsed ? "Resume" : "Start";
+    el.closest(".stopwatch").classList.toggle("running", S.timer.running);
+    paintTarget();
+  }
+  function timerToggle() {
+    const t = S.timer;
+    if (t.running) { t.elapsed += Date.now() - t.startedAt; t.running = false; }
+    else {
+      const typed = parseTime((document.getElementById("rpTime") || {}).value);
+      if (Number.isFinite(typed) && typed !== null) t.elapsed = typed * 1000;
+      t.startedAt = Date.now(); t.running = true;
+      if (!t.iv) t.iv = setInterval(timerPaint, 250);
+    }
+    timerPaint();
+  }
+  function timerReset() {
+    const t = S.timer;
+    t.running = false; t.elapsed = 0; t.startedAt = 0;
+    if (t.iv) { clearInterval(t.iv); t.iv = null; }
+    const el = document.getElementById("rpTime"); if (el) el.value = "";
+    timerPaint();
+  }
+  // ---- judge's evaluation form, split into the PI part (step 3) and the criteria part (step 7)
   function chipRow(field, bandsStr) {
     const bands = LB.parseBands(bandsStr);
     return bands.map((b, bi) => {
@@ -631,30 +832,36 @@
       return `<td class="band" data-label="${bandName(bi)}"><span class="chips">${nums.map((v) => `<button type="button" class="chip" data-action="pick" data-field="${field}" data-v="${v}" aria-label="${bandName(bi)} ${v}">${v}</button>`).join("")}</span></td>`;
     }).join("") + (bands.length < 4 ? `<td class="band"></td>`.repeat(4 - bands.length) : "");
   }
-  function rubricHtml(type) {
+  const noteRow = (name, label) => `<tr class="item-note"><td colspan="6"><textarea name="${name}" rows="2" maxlength="1500" aria-label="${esc(label)}" placeholder="${esc(label)}, one point per line"></textarea></td></tr>`;
+  const sheetHead = `<thead><tr><th>Rate the participant's ability to</th>${LB.BAND_NAMES.map((b) => `<th>${b}</th>`).join("")}<th class="num">Score</th></tr></thead>`;
+  function rubricPisHtml(type) {
     const t = S.settings.rubrics[type] || S.settings.rubrics.series;
     const piMax = LB.bandMax(t.piBands);
-    let n = 0;
+    let h = `<input type="hidden" name="rbType" value="${esc(type)}">
+      <section class="panel sheet-wrap sheet-step">
+      <div class="sheet-title"><h2><span class="step">3</span>Performance indicators</h2><span class="fine">${t.label} form, ${LB.rubricMax(t)} points in total</span></div>
+      <details class="paste"><summary>Paste the PIs from the roleplay</summary><textarea data-paste-pis rows="4" placeholder="One performance indicator per line"></textarea></details>
+      <table class="sheet">${sheetHead}<tbody>
+      <tr class="sec"><th colspan="5">Performance indicators</th><td class="num sec-sum" data-sec="pi" data-max="${t.piCount * piMax}"></td></tr>`;
+    for (let i = 0; i < t.piCount; i++) {
+      h += `<tr class="item" data-row="piScore${i}"><td class="crit"><div class="crit-in"><span class="no">${i + 1}</span><input name="piName${i}" placeholder="Performance indicator" aria-label="Performance indicator ${i + 1}"></div></td>${chipRow("piScore" + i, t.piBands)}<td class="num val"><input type="hidden" name="piScore${i}" class="rb-score" data-max="${piMax}" data-sec="pi"><output>–</output></td></tr>`;
+      h += noteRow("note_pi" + i, `Comments on PI ${i + 1}`);
+    }
+    return h + `</tbody></table></section>`;
+  }
+  function rubricCritHtml(type) {
+    const t = S.settings.rubrics[type] || S.settings.rubrics.series;
     const sections = [];
     t.criteria.forEach((c, j) => { let sec = sections.find((x) => x.name === c.section); if (!sec) sections.push((sec = { name: c.section, items: [] })); sec.items.push({ ...c, j }); });
     const secMax = (items) => items.reduce((a, c) => a + LB.bandMax(c.bands), 0);
-    let h = `<input type="hidden" name="rbType" value="${esc(type)}">
-      <section class="panel sheet-wrap">
-      <div class="sheet-title"><h2>${esc(t.label)} judge's evaluation form</h2><span class="fine">${LB.rubricMax(t)} points</span></div>
-      <details class="paste"><summary>Paste the PIs from the roleplay</summary><textarea data-paste-pis rows="4" placeholder="One performance indicator per line"></textarea></details>
-      <table class="sheet">
-      <thead><tr><th>Rate the participant's ability to</th>${LB.BAND_NAMES.map((b) => `<th>${b}</th>`).join("")}<th class="num">Score</th></tr></thead>
-      <tbody>
-      <tr class="sec"><th colspan="5">Performance indicators</th><td class="num sec-sum" data-sec="pi" data-max="${t.piCount * piMax}"></td></tr>`;
-    for (let i = 0; i < t.piCount; i++) {
-      n++;
-      h += `<tr class="item" data-row="piScore${i}"><td class="crit"><div class="crit-in"><span class="no">${n}</span><input name="piName${i}" placeholder="Performance indicator" aria-label="Performance indicator ${i + 1}"></div></td>${chipRow("piScore" + i, t.piBands)}<td class="num val"><input type="hidden" name="piScore${i}" class="rb-score" data-max="${piMax}" data-sec="pi"><output>–</output></td></tr>`;
-    }
+    let h = `<section class="panel sheet-wrap sheet-step">
+      <div class="sheet-title"><h2><span class="step">7</span>${sections.map((x) => esc(x.name)).join(", ").replace(/, ([^,]*)$/, " and $1")}</h2></div>
+      <table class="sheet">${sheetHead}<tbody>`;
     sections.forEach((sec, si) => {
       h += `<tr class="sec"><th colspan="5">${esc(sec.name)}</th><td class="num sec-sum" data-sec="s${si}" data-max="${secMax(sec.items)}"></td></tr>`;
       sec.items.forEach((c) => {
-        n++;
-        h += `<tr class="item" data-row="crScore${c.j}"><td class="crit"><div class="crit-in"><span class="no">${n}</span><span class="crit-text"><b>${esc(c.name)}</b>${c.desc ? `<small>${esc(c.desc)}</small>` : ""}</span></div></td>${chipRow("crScore" + c.j, c.bands)}<td class="num val"><input type="hidden" name="crScore${c.j}" class="rb-score" data-max="${LB.bandMax(c.bands)}" data-sec="s${si}"><output>–</output></td></tr>`;
+        h += `<tr class="item" data-row="crScore${c.j}"><td class="crit"><div class="crit-in"><span class="no">${t.piCount + c.j + 1}</span><span class="crit-text"><b>${esc(c.name)}</b>${c.desc ? `<small>${esc(c.desc)}</small>` : ""}</span></div></td>${chipRow("crScore" + c.j, c.bands)}<td class="num val"><input type="hidden" name="crScore${c.j}" class="rb-score" data-max="${LB.bandMax(c.bands)}" data-sec="s${si}"><output>–</output></td></tr>`;
+        h += noteRow("note_cr" + c.j, `Comments on ${c.name.toLowerCase()}`);
       });
     });
     return h + `</tbody></table></section>`;
@@ -690,7 +897,12 @@
   async function saveRoleplay(form) {
     const fd = new FormData(form);
     const member = fd.get("member"), event = fd.get("event"), partner = fd.get("partner");
+    const title = String(fd.get("title") || "").trim().slice(0, 100);
+    if (!title) { form.querySelector('[name="title"]').focus(); return toast("Give the roleplay a name.", "bad"); }
     if (!member || !event) return toast("Choose a participant and an event.", "bad");
+    if (S.timer.running) timerToggle();
+    const durationSec = parseTime(form.querySelector('[name="time"]').value);
+    if (Number.isNaN(durationSec)) { form.querySelector('[name="time"]').focus(); return toast("Write the time as minutes:seconds, like 8:45.", "bad"); }
     const type = fd.get("rbType");
     const t = S.settings.rubrics[type] || S.settings.rubrics.series;
     const missing = [...form.querySelectorAll(".rb-score")].filter((i) => i.value === "");
@@ -705,15 +917,25 @@
     const criteria = t.criteria.map((c, j) => ({ section: c.section, name: c.name, ...item(c.bands, fd.get("crScore" + j)) }));
     const total = [...pis, ...criteria].reduce((a, x) => a + x.score, 0);
     const maxTotal = [...pis, ...criteria].reduce((a, x) => a + x.max, 0);
-    const base = { event, area: String(fd.get("area") || "").trim().slice(0, 80), date: fd.get("date") || LB.today(), mode: fd.get("mode"), pis, criteria, total, maxTotal, judgeUid: S.me.uid };
+    const ev = LB.eventByCode(event);
+    const base = { title, event, area: String(fd.get("area") || "").trim().slice(0, 80), date: fd.get("date") || LB.today(), mode: fd.get("mode"), durationSec: durationSec === null ? null : durationSec, timeLimitMin: LB.timeLimit(ev.type, S.settings), pis, criteria, total, maxTotal, judgeUid: S.me.uid };
+    const txt = (k, n = 2000) => String(fd.get(k) || "").trim().slice(0, n);
+    const qs = fd.getAll("q_text"), qn = fd.getAll("q_notes");
+    const fb = {
+      situation: txt("situation"), intro: txt("intro"), creative: txt("creative"), conclusion: txt("conclusion"),
+      questions: qs.map((q, i) => ({ q: String(q).trim().slice(0, 300), notes: String(qn[i] || "").trim().slice(0, 1000) })).filter((x) => x.q || x.notes),
+      notes: { pi: pis.map((_, i) => txt("note_pi" + i, 1500)), cr: criteria.map((_, j) => txt("note_cr" + j, 1500)) },
+      text: txt("feedback"), improve: txt("improve")
+    };
     const members = [member];
-    if ((LB.eventByCode(event) || {}).type === "tdm" && partner && partner !== member) members.push(partner);
+    if (ev.type === "tdm" && partner && partner !== member) members.push(partner);
     const teamId = members.length > 1 ? "t_" + Date.now().toString(36) : null;
     const btn = form.querySelector(".sheet-foot .btn");
     btn.disabled = true;
     try {
-      await S.be.addRoleplays(members.map((m) => ({ ...base, memberUid: m, teamId })), String(fd.get("feedback") || "").trim().slice(0, 2000));
+      await S.be.addRoleplays(members.map((m) => ({ ...base, memberUid: m, teamId })), fb);
       invalidate();
+      timerReset();
       toast(`Roleplay saved: ${total}/${maxTotal}${members.length > 1 ? " for both partners" : ""}.`);
       render();
     } catch (e) { console.error(e); toast("The roleplay wasn't saved: " + e.message, "bad"); btn.disabled = false; }
@@ -776,7 +998,7 @@
       </section>
       <section class="block">
         <h2>Recent roleplays</h2>
-        ${recent.length ? `<table class="plain"><thead><tr><th>Date</th><th>Participant</th><th>Event</th><th class="num">Score</th><th>Judge</th><th></th></tr></thead><tbody>${recent.map((r) => `<tr><td>${fmtDate(r.date)}</td><td>${esc(nameOf(r.memberUid))}</td><td>${esc(evCode(r.event))}</td><td class="num">${r.total}/${r.maxTotal}</td><td>${esc(firstName(nameOf(r.judgeUid)))}</td><td class="num"><button class="del" data-action="delRp" data-id="${esc(r.id)}">Delete</button></td></tr>`).join("")}</tbody></table>` : `<p class="muted">None yet.</p>`}
+        ${recent.length ? `<table class="plain"><thead><tr><th>Date</th><th>Participant</th><th>Event</th><th class="num">Score</th><th>Judge</th><th></th></tr></thead><tbody>${recent.map((r) => `<tr><td>${fmtDate(r.date)}</td><td><a href="#report-${esc(r.id)}" data-action="openReport" data-from="exec">${esc(nameOf(r.memberUid))}</a><br><span class="muted">${esc(rpTitle(r))}</span></td><td>${esc(evCode(r.event))}</td><td class="num">${r.total}/${r.maxTotal}</td><td>${esc(firstName(nameOf(r.judgeUid)))}</td><td class="num"><button class="del" data-action="delRp" data-id="${esc(r.id)}">Delete</button></td></tr>`).join("")}</tbody></table>` : `<p class="muted">None yet.</p>`}
       </section>
     </div>`;
   }
@@ -829,6 +1051,7 @@
         <p class="muted">Set up to match the 2026 DECA forms. Score ranges are written Novice, Developing, Proficient, Exemplary, for example <code>0-3, 4-7, 8-11, 12</code>. Each criterion is one line: <code>Section | Name | ranges | description</code>.</p>
         <div class="rubric-edits">${Object.entries(s.rubrics).map(([k, r]) => `<div class="rubric-edit"><h3>${esc(r.label || k)}</h3>
           <div class="row2"><label>Number of PIs${num("rb_" + k + "_count", r.piCount, 1)}</label><label>PI score ranges<input name="rb_${k}_bands" value="${esc(r.piBands)}" required></label></div>
+          <label>Presentation time limit (minutes)${num("rb_" + k + "_time", LB.timeLimit(k, s), 1)}</label>
           <label>Criteria<textarea name="rb_${k}_criteria" rows="8" spellcheck="false">${esc(r.criteria.map((c) => [c.section, c.name, c.bands, c.desc || ""].join(" | ")).join("\n"))}</textarea></label>
           <p class="fine">Total ${LB.rubricMax(r)} points</p></div>`).join("")}</div>
       </section>
@@ -849,6 +1072,7 @@
       const r = s.rubrics[k];
       r.piCount = Math.max(1, Math.min(12, Math.round(n("rb_" + k + "_count"))));
       r.piBands = String(fd.get("rb_" + k + "_bands") || r.piBands).trim();
+      r.timeLimitMin = Math.max(1, Math.min(60, Math.round(n("rb_" + k + "_time")) || LB.timeLimit(k, s)));
       const lines = String(fd.get("rb_" + k + "_criteria") || "").split("\n").map((l) => l.trim()).filter(Boolean);
       r.criteria = lines.map((l) => { const [section, name, bands, desc] = l.split("|").map((x) => (x || "").trim()); return { section: section || "Other", name: name || "Criterion", bands: bands || "0-1, 2-3, 4-5, 6", desc: desc || "" }; });
     });
@@ -926,6 +1150,11 @@
       case "adminTab": S.ui.adminTab = id; return render();
       case "practiceTab": S.ui.practiceTab = id; if (location.hash.replace(/^#\/?/, "") === "practice") render(); return;
       case "pick": return pickScore(el.dataset.field, Number(el.dataset.v));
+      case "timerToggle": return timerToggle();
+      case "timerReset": return timerReset();
+      case "addQuestionRow": { const box = document.getElementById("questionRows"); const n = box.querySelectorAll(".q-row").length; if (n >= 8) return toast("That's the maximum of 8 questions.", "bad"); box.insertAdjacentHTML("beforeend", questionRow(n)); box.querySelectorAll('[name="q_text"]')[n].focus(); return; }
+      case "openReport": S.ui.reportFrom = el.dataset.from || "me"; return;
+      case "printReport": try { window.print(); } catch (err) { /* printing blocked */ } return;
       case "answer": return answerQ(Number(el.dataset.i));
       case "nextQ": if (S.quiz.idx + 1 < S.quiz.qs.length) { S.quiz.idx++; render(); } else finishQuiz(); return;
       case "quitQuiz": return finishQuiz();
@@ -1036,9 +1265,18 @@
     if (k === "boardCluster") { S.ui.cluster = el.value; return render(); }
     if (k === "qCluster") { S.ui.qCluster = el.value; return render(); }
     if (k === "qSearch") { S.ui.qSearch = el.value; return render(); }
+    if (k === "timeTyped") {
+      const v = parseTime(el.value);
+      if (Number.isNaN(v)) { toast("Write the time as minutes:seconds, like 8:45.", "bad"); return; }
+      if (!S.timer.running) { S.timer.elapsed = (v || 0) * 1000; if (v !== null) el.value = mmss(v); timerPaint(); }
+      paintTarget();
+      return;
+    }
     if (k === "rpEvent") {
       const ev = LB.eventByCode(el.value);
-      document.getElementById("rubric").innerHTML = ev ? rubricHtml(ev.type) : `<p class="empty">Choose an event to load its judge's evaluation form.</p>`;
+      document.getElementById("rubricPis").innerHTML = ev ? rubricPisHtml(ev.type) : `<p class="empty">Choose an event to load its judge's evaluation form.</p>`;
+      document.getElementById("rubricCrit").innerHTML = ev ? rubricCritHtml(ev.type) : "";
+      paintTarget();
       document.getElementById("partnerWrap").classList.toggle("hidden", !(ev && ev.type === "tdm"));
       updateSheetTotals();
       return;
@@ -1081,6 +1319,11 @@
     document.addEventListener("click", onClick);
     document.addEventListener("submit", onSubmit);
     document.addEventListener("change", onChange);
+    // comment boxes on the scoring sheet grow with their text
+    document.addEventListener("input", (e) => {
+      const t = e.target;
+      if (t.tagName === "TEXTAREA" && t.closest(".scoresheet")) { t.style.height = "auto"; t.style.height = t.scrollHeight + 2 + "px"; }
+    });
     document.addEventListener("input", onInput);
     document.addEventListener("keydown", onKey);
     window.addEventListener("hashchange", () => { if (!location.hash.includes("practice") && S.quiz && S.quiz.done) S.quiz = null; render(); window.scrollTo(0, 0); });
