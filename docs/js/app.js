@@ -415,21 +415,6 @@
       return true;
     });
   }
-  function piOptionsHtml(questions, cluster, selected = "all") {
-    const areas = {};
-    questions.forEach((q) => {
-      if (cluster !== "all" && q.cluster !== cluster) return;
-      const c = piOf(q);
-      if (!c) return;
-      const a = (areas[piArea(c)] = areas[piArea(c)] || { n: 0, pis: {} });
-      a.n++; a.pis[c] = (a.pis[c] || 0) + 1;
-    });
-    const sel = (v) => (v === selected ? " selected" : "");
-    return `<option value="all"${sel("all")}>All performance indicators</option>` + Object.keys(areas).sort((x, y) => areaName(x).localeCompare(areaName(y))).map((k) => {
-      const a = areas[k];
-      return `<optgroup label="${esc(areaName(k))}"><option value="area:${esc(k)}"${sel("area:" + k)}>All of ${esc(areaName(k))} (${a.n})</option>${Object.keys(a.pis).sort().map((c) => `<option value="${esc(c)}"${sel(c)}>${esc(piLabel(c))} (${a.pis[c]})</option>`).join("")}</optgroup>`;
-    }).join("");
-  }
   // First-try and latest-try accuracy, grouped by PI or by instructional area
   function piStats(questions, hist, { by = "area", cluster = "all" } = {}) {
     const g = {};
@@ -660,7 +645,7 @@
     S.exam = { questions, hist };
     const counts = {};
     questions.forEach((q) => { counts[q.cluster] = (counts[q.cluster] || 0) + 1; });
-    const f = S.ui.examForm || { cluster: "all", pi: "all", pool: "any", len: 10, unseenFirst: true };
+    const f = { cluster: "all", pool: "any", len: 10, unseenFirst: true, ...(S.ui.examForm || {}), pi: "all" };
     const byC = {};
     d.examStats.filter((x) => x.uid === S.me.uid).forEach((x) => Object.entries(x.byCluster || {}).forEach(([c, v]) => { byC[c] = byC[c] || { a: 0, c: 0 }; byC[c].a += v.a; byC[c].c += v.c; }));
     const recent = attempts.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)).slice(0, 6);
@@ -673,14 +658,13 @@
         <h2>New exam</h2>
         <form data-form="startQuiz" class="form" id="examForm">
           <label>Cluster<select name="cluster" data-change="examForm"><option value="all">All clusters (${questions.length} questions)</option>${LB.CLUSTERS.map((c) => `<option value="${c.id}" ${!counts[c.id] ? "disabled" : ""} ${f.cluster === c.id ? "selected" : ""}>${esc(c.name)} (${counts[c.id] || 0})</option>`).join("")}</select></label>
-          <label>Performance indicator<select name="pi" data-change="examForm">${piOptionsHtml(questions, f.cluster, f.pi)}</select></label>
           <label>Questions<select name="pool" data-change="examForm">${poolOptionsHtml(questions, hist, f)}</select></label>
           <fieldset><legend>Length</legend>
             <div class="seg">${[10, 20, 50, 100].map((n) => `<label><input type="radio" name="len" value="${n}" ${n === Number(f.len) ? "checked" : ""}><span>${n === 100 ? "100, full exam" : n}</span></label>`).join("")}</div>
           </fieldset>
           <label class="check"><input type="checkbox" name="unseenFirst" ${f.unseenFirst ? "checked" : ""}> Start with questions I haven't seen</label>
           <div class="actions"><button class="btn">Start exam</button><span class="fine" id="examMatch">${matchLine(questions, hist, f)}</span></div>
-          <p class="fine">Press 1 to 4 to answer, Enter to continue and S to bookmark a question. <button type="button" class="link" data-action="practiceTab" data-id="pis">Browse or search all performance indicators</button></p>
+          <p class="fine">Press 1 to 4 to answer, Enter to continue and S to bookmark a question. To practise one performance indicator, find it in the <button type="button" class="link" data-action="practiceTab" data-id="pis">Performance indicators</button> tab.</p>
         </form>
       </section>
       <aside>
@@ -738,12 +722,6 @@
     if (!S.exam) return;
     const { questions, hist } = S.exam;
     const f = readExamForm(form);
-    if (changed === "cluster") {
-      const sel = form.querySelector('[name="pi"]');
-      const keep = f.pi;
-      sel.innerHTML = piOptionsHtml(questions, f.cluster, keep);
-      f.pi = sel.value;
-    }
     form.querySelector('[name="pool"]').innerHTML = poolOptionsHtml(questions, hist, f);
     document.getElementById("examMatch").textContent = matchLine(questions, hist, f);
     S.ui.examForm = f;
@@ -1548,7 +1526,7 @@
       case "closeQuiz": S.quiz = null; return;
       case "bookmark": return toggleBookmark(id);
       case "practiseBookmarks": return startQuizWith({ cluster: "all", pi: "all", pool: "bookmarks", len: 100, unseenFirst: false });
-      case "practisePi": { const f = { cluster: el.dataset.cluster || "all", pi: id, pool: "any", len: 10, unseenFirst: true }; S.ui.examForm = f; return startQuizWith(f); }
+      case "practisePi": return startQuizWith({ cluster: el.dataset.cluster || "all", pi: id, pool: "any", len: 10, unseenFirst: true });
       case "retryMissed": { const z = S.quiz; const qs = z.answers.map((x, i) => (x && !x.correct ? z.qs[i] : null)).filter(Boolean); return startQuizWith({ cluster: z.cluster, pi: z.pi, pool: "missed", len: qs.length, unseenFirst: false }, qs); }
       case "piView": S.ui.piView = id; S.ui.piAll = false; return render();
       case "piAll": S.ui.piAll = !S.ui.piAll; return render();
