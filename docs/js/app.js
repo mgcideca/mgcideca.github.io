@@ -351,8 +351,8 @@
   /* ---------------- PRACTICE ---------------- */
   async function pagePractice() {
     if (S.quiz) return S.quiz.done ? quizResults() : quizView();
-    const head = `${pageTitle("Practice")}${tabs([["exams", "Exam practice"], ["roleplays", "Book a roleplay"]], S.ui.practiceTab, "practiceTab")}`;
-    return head + (S.ui.practiceTab === "roleplays" ? await practiceRoleplays() : await practiceExams());
+    const head = `${pageTitle("Practice")}${tabs([["exams", "Exam practice"], ["pis", "Performance indicators"], ["roleplays", "Book a roleplay"]], S.ui.practiceTab, "practiceTab")}`;
+    return head + (S.ui.practiceTab === "roleplays" ? await practiceRoleplays() : S.ui.practiceTab === "pis" ? await practicePis() : await practiceExams());
   }
   async function practiceRoleplays() {
     const d = await loadData();
@@ -448,6 +448,213 @@
       .sort((a, b) => ((b.n >= 3) - (a.n >= 3)) || (a.pct ?? 101) - (b.pct ?? 101) || b.n - a.n);
   }
 
+  /* ---------- performance indicator browser and search ---------- */
+  const PI_LISTS = PIS.lists || [];
+  const listById = (id) => PI_LISTS.find((l) => l.id === id);
+  const listShort = (l) => (l.tier === 1 ? "Business Admin Core" : l.tier === 3 ? l.name : l.tier === 0 ? "Entrepreneurship" : `${LB.clusterName(l.cluster)} cluster`);
+  const LEVEL_HELP = { PQ: "Prerequisite: basic employability skills", CS: "Career-sustaining: skills for continued employment", SP: "Specialist: in-depth understanding of business functions", SU: "Supervisory", MN: "Manager", ON: "Owner" };
+  // Which lists an event uses: exam lists, plus a pathway for its role-plays
+  function eventLists(code) {
+    const ev = LB.eventByCode(code);
+    if (!ev || ev.cluster === "PFL" || ev.cluster === "OTHER") return null;
+    if (ev.type === "principles") return { exam: ["CORE"], rp: [] };
+    if (ev.cluster === "ENT") return { exam: ["ENT"], rp: [] };
+    const pw = (PIS.eventPathway || {})[code];
+    return { exam: ["CORE", ev.cluster], rp: pw ? [pw] : [] };
+  }
+  const STOP = new Set("a an and are as at be by do does for from how i in is it me of on or the to what when which with about my".split(" "));
+  const SYN = { hr: "human resource", ad: "advertising", ads: "advertising", mgmt: "management", cust: "customer", stats: "statistics", ppl: "people", biz: "business", sm: "social media", crm: "customer relationship", roi: "return investment", kpi: "performance measure" };
+  const stem = (w) => (w.length > 4 ? w.replace(/(ies)$/, "y").replace(/(ing|ed|es|s|e)$/, "") : w);
+  const words = (s) => String(s || "").toLowerCase().replace(/[’']/g, "").split(/[^a-z0-9]+/).filter(Boolean);
+  function near(a, b) { // edit distance of at most 1
+    if (Math.abs(a.length - b.length) > 1) return false;
+    let i = 0, j = 0, d = 0;
+    while (i < a.length && j < b.length) {
+      if (a[i] === b[j]) { i++; j++; continue; }
+      if (++d > 1) return false;
+      if (a.length > b.length) i++; else if (b.length > a.length) j++; else { i++; j++; }
+    }
+    return d + (a.length - i) + (b.length - j) <= 1;
+  }
+  let PI_INDEX = null;
+  function piIndex() {
+    if (PI_INDEX) return PI_INDEX;
+    const inLists = {};
+    PI_LISTS.forEach((l) => l.codes.forEach((c) => (inLists[c] = inLists[c] || []).push(l.id)));
+    PI_INDEX = Object.keys(PIS.names).map((code) => {
+      const lists = inLists[code] || [];
+      const name = PIS.names[code], detail = (PIS.details || {})[code] || "", area = areaName(piArea(code));
+      return {
+        code, name, detail, area, lv: (PIS.lv || {})[code] || "", lists, exam: lists.some((id) => (listById(id) || {}).exam),
+        f: [[words(name), 1], [words(detail), 0.5], [words(area), 0.6], [words(lists.map((id) => (listById(id) || {}).name).join(" ")), 0.35]].map(([w, k]) => [w, w.map(stem), k])
+      };
+    });
+    return PI_INDEX;
+  }
+  function parseQuery(q) {
+    const raw = String(q || "").trim();
+    const code = (raw.toUpperCase().match(/\b([A-Z]{2,3}):?\s?(\d{1,3})\b/) || []);
+    let toks = words(raw.replace(/\b[A-Za-z]{2,3}:?\s?\d{1,3}\b/g, " "));
+    toks = toks.flatMap((t) => (SYN[t] ? words(SYN[t]) : [t]));
+    const kept = toks.filter((t) => !STOP.has(t));
+    return { raw, code: code[1] ? code[1] + ":" + code[2] : "", toks: kept.length ? kept : toks };
+  }
+  function tokScore(t, row) {
+    const st = stem(t);
+    let best = 0;
+    row.f.forEach(([w, ws, k]) => w.forEach((x, i) => {
+      let s = 0;
+      if (x === t) s = 3;
+      else if (ws[i] === st) s = 2.6;
+      else if (x.startsWith(t) && t.length >= 2) s = 2;
+      else if (t.length >= 5 && near(t, x)) s = 1.2;
+      if (s * k > best) best = s * k;
+    }));
+    return best;
+  }
+  function searchPis(q, rows) {
+    const { raw, code, toks } = parseQuery(q);
+    const res = [];
+    let partial = false;
+    rows.forEach((r) => {
+      let score = 0, hit = 0;
+      if (code) {
+        if (r.code === code) score += 1000;
+        else if (r.code.startsWith(code)) score += 200;
+        else if (!toks.length) return;
+      }
+      toks.forEach((t) => {
+        if (/^[a-z]{2,3}$/.test(t) && r.code.toLowerCase().startsWith(t + ":")) { score += 4; hit++; return; }
+        const s = tokScore(t, r);
+        if (s > 0) { score += s; hit++; }
+      });
+      if (toks.length && hit === 0 && !(code && r.code.startsWith(code))) return;
+      if (raw.length > 3 && r.name.toLowerCase().includes(raw.toLowerCase())) score += 6;
+      res.push({ r, score: score - r.name.length / 400, all: hit === toks.length });
+    });
+    let out = res.filter((x) => x.all);
+    if (!out.length && toks.length > 1) { partial = true; out = res.filter((x) => x.score > 0); }
+    const codeOnly = toks.every((t) => /^[a-z]{2,3}$/.test(t) && PIS.areas[t.toUpperCase()]) && (code || toks.length);
+    out.sort(codeOnly ? (a, b) => a.r.code.localeCompare(b.r.code) : (a, b) => b.score - a.score || a.r.code.localeCompare(b.r.code));
+    return { list: out.map((x) => x.r), partial, toks, code };
+  }
+  function markWords(text, toks) {
+    if (!toks.length) return esc(text);
+    return String(text).split(/(\s+)/).map((w) => {
+      const lw = words(w)[0];
+      if (!lw) return esc(w);
+      const on = toks.some((t) => lw === t || stem(lw) === stem(t) || (t.length >= 2 && lw.startsWith(t)) || (t.length >= 5 && near(t, lw)));
+      return on ? `<mark>${esc(w)}</mark>` : esc(w);
+    }).join("");
+  }
+
+  function browserState() {
+    if (!S.ui.piBrowse) {
+      const ev = (S.data && S.data.profiles && (S.data.profiles[S.me.uid] || {}).event) || S.me.event;
+      S.ui.piBrowse = { q: "", list: eventLists(ev) ? "ev:" + ev : "all", level: "all", withQ: false, more: 0 };
+    }
+    return S.ui.piBrowse;
+  }
+  function browserRows(f) {
+    let rows = piIndex();
+    let note = "";
+    if (f.list.startsWith("ev:")) {
+      const ev = f.list.slice(3), el = eventLists(ev) || { exam: [], rp: [] };
+      const want = new Set([...el.exam, ...el.rp]);
+      rows = rows.filter((r) => r.lists.some((id) => want.has(id)));
+      const ex = el.exam.map((id) => listShort(listById(id) || { name: id })).join(" and ");
+      note = `${ev} exam: ${ex}.${el.rp.length ? ` Role-play: the same, plus the ${el.rp.map((id) => (listById(id) || {}).name).join(", ")}.` : ` Role-play: the same lists.`}`;
+    } else if (f.list !== "all") rows = rows.filter((r) => r.lists.includes(f.list));
+    if (f.level !== "all") rows = rows.filter((r) => r.lv === f.level);
+    if (f.withQ) rows = rows.filter((r) => (S.piQCount || {})[r.code]);
+    return { rows, note };
+  }
+  function piRowHtml(r, toks, stats, evRp) {
+    const n = (S.piQCount || {})[r.code] || 0;
+    const st = stats[r.code];
+    const lists = r.lists.map(listById).filter(Boolean);
+    const rpOnly = !r.exam;
+    return `<li class="pi-row">
+      <div class="pi-main">
+        <b class="pi-code">${esc(r.code)}</b>
+        <div><p class="pi-title">${markWords(r.name, toks)}</p>
+        ${r.detail ? `<p class="pi-detail">${markWords(r.detail, toks)}</p>` : ""}
+        <p class="pi-tags">${r.lv ? `<span class="tag lv" title="${esc(LEVEL_HELP[r.lv] || "")}">${esc((PIS.levels || {})[r.lv] || r.lv)}</span>` : ""}<span class="tag ${rpOnly ? "rp" : "ex"}">${rpOnly ? "Role-plays only" : "Exams and role-plays"}</span>${lists.map((l) => `<span class="tag">${esc(listShort(l))}</span>`).join("")}</p></div>
+      </div>
+      <div class="pi-side">
+        ${n ? `<span>${plural(n, "practice question")}</span>${st && st.n ? `<span class="muted">First try ${fmt(st.pct, 0)}% of ${st.n}</span>` : ""}<button class="btn secondary small" data-action="practisePi" data-id="${esc(r.code)}" data-cluster="all">Practise</button>`
+          : `<span class="muted">${rpOnly ? "Role-play topic, no exam questions" : "No practice questions yet"}</span>`}
+      </div>
+    </li>`;
+  }
+  function browserResultsHtml() {
+    const f = browserState();
+    const { rows, note } = browserRows(f);
+    const stats = {};
+    if (S.exam) piStats(S.exam.questions, S.exam.hist, { by: "pi" }).forEach((r) => (stats[r.key] = r));
+    const evRp = f.list.startsWith("ev:") ? ((eventLists(f.list.slice(3)) || {}).rp || [])[0] : null;
+    const head = (count) => `<p class="pi-count" id="piCount">${count}</p>${note ? `<p class="pi-note">${esc(note)}</p>` : ""}`;
+    if (f.q.trim()) {
+      const { list, partial, toks } = searchPis(f.q, rows);
+      if (!list.length) return head(`No indicators match “${esc(f.q.trim())}”.`) + `<p class="empty">Try fewer words, a different word for the same idea, or a code like MK:015.${f.list !== "all" || f.level !== "all" || f.withQ ? ` Your filters are also narrowing the list: <button class="link" data-action="piClearFilters">search all ${fmt(piIndex().length, 0)} indicators</button>.` : ""}</p>`;
+      const shown = list.slice(0, 40 + (f.more || 0));
+      const filtered = f.list !== "all" || f.level !== "all" || f.withQ;
+      const extra = filtered && !partial ? searchPis(f.q, piIndex()).list.length - list.length : 0;
+      const more = extra > 0 ? `<p class="pi-note">${plural(extra, "more indicator")} ${extra === 1 ? "matches" : "match"} outside these filters. <button class="link" data-action="piClearFilters">Search all indicators</button></p>` : "";
+      return head(`${partial ? "No indicator has every word you typed. Closest matches: " : ""}${plural(list.length, "indicator")} ${partial ? "" : list.length === 1 ? "matches" : "match"}${partial ? "" : "."}`) +
+        more + `<ol class="pi-results">${shown.map((r) => piRowHtml(r, toks, stats, evRp)).join("")}</ol>` +
+        (list.length > shown.length ? `<button class="btn secondary" data-action="piMore">Show ${Math.min(40, list.length - shown.length)} more</button>` : "");
+    }
+    // grouped by instructional area
+    const groups = {};
+    rows.forEach((r) => (groups[piArea(r.code)] = groups[piArea(r.code)] || []).push(r));
+    const keys = Object.keys(groups).sort((a, b) => areaName(a).localeCompare(areaName(b)));
+    const openAll = S.ui.piOpen === "all" || rows.length <= 40;
+    return head(`${plural(rows.length, "indicator")} in ${plural(keys.length, "instructional area")}.`) +
+      (keys.length > 1 ? `<div class="pi-expand"><button class="link" data-action="piOpen" data-id="all">Expand all</button><button class="link" data-action="piOpen" data-id="none">Collapse all</button></div>` : "") +
+      keys.map((k) => {
+        const g = groups[k].sort((a, b) => a.code.localeCompare(b.code));
+        const withQ = g.filter((r) => (S.piQCount || {})[r.code]).length;
+        return `<details class="pi-area" ${openAll || keys.length === 1 ? "open" : ""}><summary><span class="pi-area-name">${esc(areaName(k))}</span><span class="pi-area-meta">${esc(k)}, ${plural(g.length, "indicator")}${withQ ? `, ${withQ} with practice questions` : ""}</span></summary><ol class="pi-results">${g.map((r) => piRowHtml(r, [], stats, evRp)).join("")}</ol></details>`;
+      }).join("");
+  }
+  function browserListOptions(sel) {
+    const o = (v, label) => `<option value="${esc(v)}" ${sel === v ? "selected" : ""}>${esc(label)}</option>`;
+    const evs = LB.EVENTS.filter((e) => eventLists(e.code));
+    const byCl = {};
+    PI_LISTS.filter((l) => l.tier === 3).forEach((l) => (byCl[l.cluster] = byCl[l.cluster] || []).push(l));
+    const myEv = (S.data && S.data.profiles && (S.data.profiles[S.me.uid] || {}).event) || S.me.event;
+    return o("all", `All indicators (${fmt(piIndex().length, 0)})`) +
+      (eventLists(myEv) ? o("ev:" + myEv, `My event, ${myEv}`) : "") +
+      `<optgroup label="By event">${evs.filter((e) => e.code !== myEv).map((e) => o("ev:" + e.code, `${e.code}: ${e.name}`)).join("")}</optgroup>` +
+      `<optgroup label="Exam lists">${PI_LISTS.filter((l) => l.exam).map((l) => o(l.id, `${l.name} (${l.codes.length})`)).join("")}</optgroup>` +
+      Object.keys(byCl).map((c) => `<optgroup label="${esc(LB.clusterName(c))} pathways, role-plays only">${byCl[c].map((l) => o(l.id, `${l.name} (${l.codes.length})`)).join("")}</optgroup>`).join("");
+  }
+  async function practicePis() {
+    const [questions, hist] = await Promise.all([S.be.listQuestions(), S.be.getHistory(), loadData()]);
+    S.exam = { questions, hist };
+    S.piQCount = {};
+    questions.forEach((q) => { const c = piOf(q); if (c) S.piQCount[c] = (S.piQCount[c] || 0) + 1; });
+    const f = browserState();
+    const levels = Object.entries(PIS.levels || {});
+    return `<section class="pi-browser">
+      <p class="board-blurb">Every performance indicator on DECA's ${esc(PIS.year)} lists for our clusters. Search for a topic or browse the full list, then practise the ones with questions.</p>
+      <div class="pi-search">
+        <label for="piq">Search performance indicators</label>
+        <input type="search" id="piq" value="${esc(f.q)}" placeholder="Try “pricing”, “customer complaints” or “MK:015”" autocomplete="off" spellcheck="false">
+      </div>
+      <div class="pi-filters">
+        <label>Show<select data-change="piBrowse" name="list">${browserListOptions(f.list)}</select></label>
+        <label>Level<select data-change="piBrowse" name="level"><option value="all">All levels</option>${levels.map(([k, v]) => `<option value="${k}" ${f.level === k ? "selected" : ""}>${esc(v)}</option>`).join("")}</select></label>
+        <label class="check"><input type="checkbox" data-change="piBrowse" name="withQ" ${f.withQ ? "checked" : ""}> Only ones with practice questions</label>
+      </div>
+      <div id="piResults" aria-live="polite">${browserResultsHtml()}</div>
+      <p class="fine pi-credit">${esc(PI_CREDIT)} DECA uses the Business Administration Core and cluster lists for exams, and adds the pathway lists for series role-plays.</p>
+    </section>`;
+  }
+  let piTimer = null;
+  function refreshBrowser() { const el = document.getElementById("piResults"); if (el) el.innerHTML = browserResultsHtml(); }
+
   async function practiceExams() {
     const [questions, hist, attempts, d] = await Promise.all([S.be.listQuestions(), S.be.getHistory(), S.be.listMyAttempts(), loadData()]);
     S.exam = { questions, hist };
@@ -473,7 +680,7 @@
           </fieldset>
           <label class="check"><input type="checkbox" name="unseenFirst" ${f.unseenFirst ? "checked" : ""}> Start with questions I haven't seen</label>
           <div class="actions"><button class="btn">Start exam</button><span class="fine" id="examMatch">${matchLine(questions, hist, f)}</span></div>
-          <p class="fine">Press 1 to 4 to answer, Enter to continue and S to bookmark a question.</p>
+          <p class="fine">Press 1 to 4 to answer, Enter to continue and S to bookmark a question. <button type="button" class="link" data-action="practiceTab" data-id="pis">Browse or search all performance indicators</button></p>
         </form>
       </section>
       <aside>
@@ -1345,6 +1552,9 @@
       case "retryMissed": { const z = S.quiz; const qs = z.answers.map((x, i) => (x && !x.correct ? z.qs[i] : null)).filter(Boolean); return startQuizWith({ cluster: z.cluster, pi: z.pi, pool: "missed", len: qs.length, unseenFirst: false }, qs); }
       case "piView": S.ui.piView = id; S.ui.piAll = false; return render();
       case "piAll": S.ui.piAll = !S.ui.piAll; return render();
+      case "piMore": { const f = browserState(); f.more = (f.more || 0) + 40; return refreshBrowser(); }
+      case "piOpen": S.ui.piOpen = id; document.querySelectorAll(".pi-area").forEach((d) => (d.open = id === "all")); return;
+      case "piClearFilters": { const f = browserState(); Object.assign(f, { list: "all", level: "all", withQ: false, more: 0 }); return render(); }
       case "approve": return run(async () => { await S.be.setUserFields(id, { approved: true }); invalidate(); render(); }, "Member approved.");
       case "delMember": if (!(await ask(S.be.mode === "live" ? "Remove this member from the site? To free up their email so it can sign up again, also delete it in Firebase under Authentication, then Users." : "Remove this account?", "Remove"))) return; return run(async () => { await S.be.deleteMember(id); invalidate(); render(); }, "Account removed.");
       case "delRp": if (!(await ask("Delete this roleplay? For team roleplays, each partner's record is deleted separately.", "Delete"))) return; return run(async () => { await S.be.deleteRoleplay(id); invalidate(); render(); }, "Roleplay deleted.");
@@ -1457,6 +1667,7 @@
     if (k === "boardCluster") { S.ui.cluster = el.value; return render(); }
     if (k === "qCluster") { S.ui.qCluster = el.value; return render(); }
     if (k === "examForm") return refreshExamForm(el.form, el.name);
+    if (k === "piBrowse") { const f = browserState(); f[el.name] = el.type === "checkbox" ? el.checked : el.value; f.more = 0; return refreshBrowser(); }
     if (k === "piCluster") { S.ui.piCluster = el.value; S.ui.piAll = false; return render(); }
     if (k === "qSearch") { S.ui.qSearch = el.value; return render(); }
     if (k === "timeTyped") {
@@ -1493,6 +1704,7 @@
   }
   function onInput(e) {
     const t = e.target;
+    if (t.id === "piq") { clearTimeout(piTimer); piTimer = setTimeout(() => { const f = browserState(); f.q = t.value; f.more = 0; refreshBrowser(); }, 120); return; }
     if (t.matches && t.matches("[data-paste-pis]")) {
       const lines = t.value.split(/\r?\n/).map((l) => l.replace(/^\s*\d+[.)]\s*/, "").trim()).filter(Boolean);
       document.querySelectorAll('[name^="piName"]').forEach((inp, i) => { if (lines[i] !== undefined) inp.value = lines[i]; });
