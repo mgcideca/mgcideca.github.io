@@ -123,52 +123,1647 @@
   /* ---------- Sample questions ----------
      Original practice questions written for this site (NOT official DECA exam items).
      Import your chapter's own bank in Exec → Question bank. */
-  const Q = (cluster, q, options, answer, explanation) => ({ cluster, q, options, answer, explanation, source: "Sample (MGCI DECA)" });
+
   LB.SAMPLE_QUESTIONS = [
-    Q("CORE", "Machines, tools and buildings used to produce goods are which type of economic resource?", ["Land", "Labour", "Capital goods", "Entrepreneurship"], 2, "Capital goods are man-made resources used to produce other goods and services."),
-    Q("CORE", "A business owned by one person who has unlimited personal liability for its debts is a:", ["Partnership", "Corporation", "Sole proprietorship", "Co-operative"], 2, "Sole proprietors and the business are legally the same, so the owner's personal assets are at risk."),
-    Q("CORE", "An employee nods and paraphrases a customer's complaint back to them. This is an example of:", ["Selective listening", "Active listening", "Persuasive speaking", "Nonverbal resistance"], 1, "Active listening means showing you understand — paraphrasing and nonverbal cues like nodding."),
-    Q("CORE", "Which of the following is a fixed cost for a small café?", ["Coffee beans", "Paper cups", "Monthly rent", "Overtime wages"], 2, "Fixed costs stay the same regardless of how much is sold; rent doesn't change with sales volume."),
-    Q("CORE", "The value of the next-best alternative you give up when making a choice is called:", ["Sunk cost", "Opportunity cost", "Marginal utility", "Comparative advantage"], 1, "Opportunity cost is what you sacrifice by choosing one option over the next-best one."),
-    Q("CORE", "Which statement best describes business ethics?", ["Following only the rules written into law", "Doing whatever maximizes short-term profit", "Acting on principles of right and wrong, even when the law doesn't require it", "Letting each employee decide what is acceptable"], 2, "Ethics goes beyond legal minimums to what is right and fair."),
-
-    Q("BMA", "Which management function involves setting goals and deciding how to reach them?", ["Planning", "Organizing", "Staffing", "Controlling"], 0, "Planning comes first: setting objectives and the strategies to achieve them."),
-    Q("BMA", "In a SWOT analysis, which two elements are EXTERNAL to the business?", ["Strengths and weaknesses", "Opportunities and threats", "Strengths and opportunities", "Weaknesses and threats"], 1, "Opportunities and threats come from the outside environment; strengths and weaknesses are internal."),
-    Q("BMA", "A manager who makes decisions alone without asking employees for input uses which leadership style?", ["Democratic", "Laissez-faire", "Autocratic", "Servant"], 2, "Autocratic leaders keep decision-making authority to themselves."),
-    Q("BMA", "The process of finding and attracting qualified applicants for a job opening is called:", ["Orientation", "Recruitment", "Appraisal", "Compensation"], 1, "Recruitment builds the pool of applicants; selection then picks from it."),
-    Q("BMA", "A legally enforceable agreement between two or more parties is a:", ["Memo", "Contract", "Mission statement", "Proposal"], 1, "A contract creates obligations that can be enforced by law."),
-
-    Q("ENT", "Ongoing payments a franchisee makes to the franchisor, usually a percentage of sales, are called:", ["Dividends", "Tariffs", "Royalties", "Rebates"], 2, "Royalties pay for continued use of the franchisor's brand and system."),
-    Q("ENT", "The point where total revenue equals total costs is the:", ["Profit margin", "Break-even point", "Market equilibrium", "Gross margin"], 1, "At break-even the business has neither profit nor loss."),
-    Q("ENT", "Raising money by selling part-ownership of the business to investors is:", ["Debt financing", "Equity financing", "Trade credit", "Bootstrapping"], 1, "Equity investors receive ownership instead of loan repayments."),
-    Q("ENT", "A minimum viable product (MVP) is best described as:", ["The cheapest product on the market", "The simplest version of a product that can test real customer demand", "A product that meets every possible customer need", "A prototype that is never shown to customers"], 1, "An MVP lets a startup learn from real customers before investing heavily."),
-    Q("ENT", "A primary purpose of a business plan is to:", ["Replace the need for market research", "Describe the business's goals and strategy, often to attract funding", "Guarantee the business will be profitable", "Register the business name with the government"], 1, "Lenders and investors use the plan to judge whether the venture is sound."),
-
-    Q("FIN", "Complete the accounting equation: Assets = Liabilities + ______", ["Revenue", "Expenses", "Owner's equity", "Cash"], 2, "Everything a business owns is financed either by creditors (liabilities) or owners (equity)."),
-    Q("FIN", "Which financial statement shows revenues and expenses over a period of time?", ["Balance sheet", "Income statement", "Statement of cash flows", "Trial balance"], 1, "The income statement reports profit or loss for a period."),
-    Q("FIN", "A company has current assets of $50,000 and current liabilities of $25,000. Its current ratio is:", ["0.5", "1.0", "2.0", "25,000"], 2, "Current ratio = current assets ÷ current liabilities = 50,000 ÷ 25,000 = 2.0."),
-    Q("FIN", "Compound interest is calculated on:", ["The original principal only", "The principal plus interest already earned", "Only the interest earned last year", "The amount withdrawn"], 1, "Compounding earns 'interest on interest', which speeds up growth."),
-    Q("FIN", "The main purpose of diversifying an investment portfolio is to:", ["Guarantee higher returns", "Reduce risk by spreading money across different investments", "Avoid paying taxes", "Increase trading fees"], 1, "Diversification lowers the impact of any single investment performing badly."),
-    Q("FIN", "Spreading the cost of a long-term asset over its useful life is called:", ["Appreciation", "Amortization of revenue", "Depreciation", "Inflation"], 2, "Depreciation matches the asset's cost to the periods that benefit from it."),
-
-    Q("HT", "In the hotel industry, RevPAR stands for:", ["Revenue per available room", "Reservations per arriving resident", "Rate of visitor arrivals", "Room expense per average reservation"], 0, "RevPAR = room revenue ÷ rooms available; it combines rate and occupancy."),
-    Q("HT", "A 200-room hotel sells 150 rooms tonight. What is its occupancy rate?", ["50%", "66%", "75%", "150%"], 2, "Occupancy = rooms sold ÷ rooms available = 150 ÷ 200 = 75%."),
-    Q("HT", "Accepting more reservations than there are rooms, to offset expected no-shows, is called:", ["Upselling", "Overbooking", "Yield pricing", "Walk-in sales"], 1, "Overbooking protects revenue from no-shows but risks having to 'walk' a guest."),
-    Q("HT", "Which is an INTANGIBLE part of a hospitality product?", ["The hotel's swimming pool", "Breakfast buffet food", "The friendliness of front-desk staff", "Room furniture"], 2, "Service quality can't be touched or stored — it's intangible."),
-    Q("HT", "When a guest complains, the recommended first step is usually to:", ["Offer a full refund immediately", "Listen and acknowledge the guest's concern", "Explain the hotel's policy", "Call a manager before saying anything"], 1, "Guests need to feel heard before any solution will land well."),
-
-    Q("MKT", "Which of the following is NOT one of the four Ps of the marketing mix?", ["Product", "Price", "Promotion", "Profit"], 3, "The four Ps are Product, Price, Place and Promotion."),
-    Q("MKT", "Dividing a market by age, income and gender is ______ segmentation.", ["Geographic", "Demographic", "Psychographic", "Behavioural"], 1, "Demographic segmentation uses measurable population characteristics."),
-    Q("MKT", "Setting a low introductory price to quickly gain market share is called:", ["Price skimming", "Penetration pricing", "Prestige pricing", "Odd-even pricing"], 1, "Penetration pricing trades early margin for fast customer growth."),
-    Q("MKT", "A company's distinctive name, symbol or design that identifies its products is its:", ["Slogan", "Brand", "Patent", "Channel"], 1, "A brand distinguishes a company's products from competitors'."),
-    Q("MKT", "Paid, non-personal communication from an identified sponsor is:", ["Publicity", "Personal selling", "Advertising", "Word of mouth"], 2, "Advertising is paid and non-personal; publicity is unpaid."),
-    Q("MKT", "Information a business collects itself for a specific current purpose is:", ["Secondary data", "Primary data", "Census data", "Syndicated data"], 1, "Primary data is gathered first-hand (surveys, focus groups, observation)."),
-
-    Q("PFL", "In Canada, a Tax-Free Savings Account (TFSA) allows you to:", ["Avoid all income tax on your salary", "Earn investment income tax-free within contribution limits", "Borrow money at zero interest", "Deduct contributions from your taxable income"], 1, "Growth and withdrawals in a TFSA aren't taxed, but contributions aren't tax-deductible."),
-    Q("PFL", "Which factor usually has the biggest impact on a credit score?", ["Your income", "Payment history", "Your age", "Where you bank"], 1, "Paying bills on time is the single most important factor."),
-    Q("PFL", "Net pay is:", ["Pay before any deductions", "Pay after taxes and other deductions", "Your hourly wage", "Pay including bonuses"], 1, "Net pay is your take-home amount after deductions from gross pay."),
-    Q("PFL", "An emergency fund is commonly recommended to cover about:", ["One week of expenses", "3–6 months of essential expenses", "Five years of income", "Only your phone bill"], 1, "Three to six months of essentials gives a buffer for job loss or surprise costs.")
-  ];
+    {
+    "cluster": "CORE",
+    "q": "A name, symbol, or design that identifies a business's products and sets them apart from competitors' products is a",
+    "options": [
+    "price.",
+    "channel.",
+    "brand.",
+    "market."
+    ],
+    "answer": 2,
+    "explanation": "Brand. Brands help customers recognize products and build loyalty. Price is the amount charged, a channel is the path products take to customers, and a market is a group of potential customers.",
+    "source": "MGCI DECA original, MK:015"
+    },
+    {
+    "cluster": "CORE",
+    "q": "A letter that asks a business for information about its products or services is a letter of",
+    "options": [
+    "recommendation.",
+    "inquiry.",
+    "application.",
+    "adjustment."
+    ],
+    "answer": 1,
+    "explanation": "Inquiry. A letter of inquiry requests information. An adjustment letter responds to a complaint, an application letter applies for a job, and a recommendation letter supports another person.",
+    "source": "MGCI DECA original, CO:040"
+    },
+    {
+    "cluster": "CORE",
+    "q": "Which of the following is an example of computer hardware:",
+    "options": [
+    "Web browser",
+    "Keyboard",
+    "Operating system",
+    "Spreadsheet program"
+    ],
+    "answer": 1,
+    "explanation": "Keyboard. Hardware includes the physical parts of a computer system, such as keyboards, monitors, and storage devices. Operating systems, browsers, and spreadsheets are software.",
+    "source": "MGCI DECA original, NF:084"
+    },
+    {
+    "cluster": "CORE",
+    "q": "A business that knowingly lies about a product's features to make a sale is committing",
+    "options": [
+    "negligence.",
+    "trespassing.",
+    "fraud.",
+    "defamation."
+    ],
+    "answer": 2,
+    "explanation": "Fraud. Fraud is intentionally deceiving someone to gain an advantage. Negligence is careless rather than intentional, trespassing is entering property without permission, and defamation is making false statements that damage a reputation.",
+    "source": "MGCI DECA original, BL:069"
+    },
+    {
+    "cluster": "CORE",
+    "q": "A high school student looking for help in choosing a career could visit the school's",
+    "options": [
+    "cafeteria.",
+    "athletic department.",
+    "library circulation desk.",
+    "guidance office."
+    ],
+    "answer": 3,
+    "explanation": "Guidance office. Guidance counsellors provide career assessments, information about programs, and advice on career planning. The other places do not offer career counselling.",
+    "source": "MGCI DECA original, PD:026"
+    },
+    {
+    "cluster": "CORE",
+    "q": "A new employee is unsure how to process a customer's special order. The employee should",
+    "options": [
+    "skip the steps that seem unnecessary.",
+    "create his/her own method.",
+    "follow the business's written procedure.",
+    "tell the customer to come back later."
+    ],
+    "answer": 2,
+    "explanation": "Follow the business's written procedure. Procedures ensure that tasks are done consistently and correctly. Creating new methods, delaying the customer, or skipping steps can cause errors.",
+    "source": "MGCI DECA original, PD:250"
+    },
+    {
+    "cluster": "CORE",
+    "q": "Which of the following is a disadvantage of group decision-making:",
+    "options": [
+    "It always leads to poor decisions.",
+    "Group members never disagree.",
+    "It produces fewer ideas.",
+    "It usually takes more time."
+    ],
+    "answer": 3,
+    "explanation": "It usually takes more time. Groups must discuss options and reach agreement, which is slower than one person deciding. Groups usually generate more ideas, often disagree, and can make very good decisions.",
+    "source": "MGCI DECA original, CO:067"
+    },
+    {
+    "cluster": "CORE",
+    "q": "An employee receives written instructions for submitting expense reports. To complete the task correctly, the employee should",
+    "options": [
+    "ask a coworker to read them instead.",
+    "skip the instructions and use last year's method.",
+    "read the instructions carefully and follow each step.",
+    "skim the first line and guess the rest."
+    ],
+    "answer": 2,
+    "explanation": "Read the instructions carefully and follow each step. Careful reading helps employees complete tasks correctly the first time. Skimming, relying on others, or using outdated methods can lead to mistakes.",
+    "source": "MGCI DECA original, CO:056"
+    },
+    {
+    "cluster": "CORE",
+    "q": "When the quantity of a product supplied is greater than the quantity demanded at the current price, there is a(n)",
+    "options": [
+    "equilibrium.",
+    "shortage.",
+    "monopoly.",
+    "surplus."
+    ],
+    "answer": 3,
+    "explanation": "Surplus. A surplus, or excess supply, occurs when sellers offer more than buyers want at the current price, which usually causes prices to fall. A shortage is the opposite, equilibrium is where supply equals demand, and a monopoly is a single seller.",
+    "source": "MGCI DECA original, EC:006"
+    },
+    {
+    "cluster": "CORE",
+    "q": "Innovation is important to businesses because it helps them",
+    "options": [
+    "avoid all competition.",
+    "keep doing things the same way.",
+    "reduce the need for planning.",
+    "develop new products and better ways of working."
+    ],
+    "answer": 3,
+    "explanation": "Develop new products and better ways of working. Innovation leads to new goods, services, and processes that can increase sales and efficiency. It does not remove competition, preserve old methods, or replace planning.",
+    "source": "MGCI DECA original, PD:126"
+    },
+    {
+    "cluster": "CORE",
+    "q": "Getting to know coworkers and showing respect for their feelings helps employees",
+    "options": [
+    "eliminate all workplace rules.",
+    "avoid doing their share of work.",
+    "get promoted without effort.",
+    "build positive working relationships."
+    ],
+    "answer": 3,
+    "explanation": "Build positive working relationships. Respect and friendliness create trust and cooperation among coworkers. They do not replace effort, guarantee promotions, or remove rules.",
+    "source": "MGCI DECA original, EI:036"
+    },
+    {
+    "cluster": "CORE",
+    "q": "Which of the following is an operating expense for a small business:",
+    "options": [
+    "A loan from a bank",
+    "Money received from selling equipment",
+    "Monthly utility bills",
+    "The owner's investment in the business"
+    ],
+    "answer": 2,
+    "explanation": "Monthly utility bills. Operating expenses are the ongoing costs of running a business, such as rent, utilities, and supplies. Money from selling equipment, loans, and owner investments are sources of funds, not expenses.",
+    "source": "MGCI DECA original, FI:091"
+    },
+    {
+    "cluster": "CORE",
+    "q": "Buying and selling goods and services over the internet is",
+    "options": [
+    "direct mail.",
+    "telemarketing.",
+    "wholesaling.",
+    "e-commerce."
+    ],
+    "answer": 3,
+    "explanation": "E-commerce. Electronic commerce uses websites and apps to complete sales transactions online. Telemarketing uses the telephone, direct mail uses printed materials, and wholesaling is selling to other businesses for resale.",
+    "source": "MGCI DECA original, NF:086"
+    },
+    {
+    "cluster": "CORE",
+    "q": "Which of the following is a characteristic of a project:",
+    "options": [
+    "It has a definite beginning and end.",
+    "It does not involve stakeholders.",
+    "It continues indefinitely.",
+    "It never has a budget."
+    ],
+    "answer": 0,
+    "explanation": "It has a definite beginning and end. Projects are temporary efforts to create a specific result, with set start and end dates. They usually have budgets and involve stakeholders.",
+    "source": "MGCI DECA original, OP:519"
+    },
+    {
+    "cluster": "CORE",
+    "q": "A customer at a phone store is angry because his new phone stopped working. The salesperson should first",
+    "options": [
+    "ask the customer to come back another day.",
+    "explain the store's return policy in detail.",
+    "let the customer explain the problem without interrupting.",
+    "tell the customer the problem is his fault."
+    ],
+    "answer": 2,
+    "explanation": "Let the customer explain the problem without interrupting. Allowing an upset customer to vent shows respect and helps the employee understand the problem. Blaming the customer or sending him away makes him angrier, and explaining policies before listening seems uncaring.",
+    "source": "MGCI DECA original, CR:009"
+    },
+    {
+    "cluster": "CORE",
+    "q": "Before selecting a new supplier, a business should find out whether the supplier",
+    "options": [
+    "sells to the business's competitors.",
+    "is located in the same building.",
+    "has the largest advertising budget.",
+    "has the resources to deliver orders on time."
+    ],
+    "answer": 3,
+    "explanation": "Has the resources to deliver orders on time. Businesses evaluate vendors on reliability, quality, price, and capabilities. Advertising budgets, competitors, and location in the same building are not key factors.",
+    "source": "MGCI DECA original, OP:161"
+    },
+    {
+    "cluster": "CORE",
+    "q": "To build understanding with a coworker who is explaining a problem, Olivia should",
+    "options": [
+    "pay attention to the coworker's words and nonverbal cues.",
+    "offer advice before the coworker finishes.",
+    "think about her own problems.",
+    "change the subject to something positive."
+    ],
+    "answer": 0,
+    "explanation": "Pay attention to the coworker's words and nonverbal cues. Understanding others requires attention to what they say and how they say it. Thinking about yourself, interrupting with advice, or changing the subject shows a lack of understanding.",
+    "source": "MGCI DECA original, EI:007"
+    },
+    {
+    "cluster": "CORE",
+    "q": "When speaking with customers, employees should use correct grammar because it",
+    "options": [
+    "allows the speaker to use more slang.",
+    "is required by law.",
+    "makes conversations last longer.",
+    "makes the speaker appear knowledgeable and professional."
+    ],
+    "answer": 3,
+    "explanation": "Makes the speaker appear knowledgeable and professional. Correct grammar helps the message be understood and creates a positive impression of the employee and the business. Slang should be avoided, length is not the goal, and grammar is not a legal requirement.",
+    "source": "MGCI DECA original, CO:147"
+    },
+    {
+    "cluster": "BMA",
+    "q": "Extra inventory that a business keeps on hand in case demand is higher than expected or deliveries are late is",
+    "options": [
+    "work in process.",
+    "buffer stock.",
+    "consignment stock.",
+    "obsolete stock."
+    ],
+    "answer": 1,
+    "explanation": "Buffer stock. Buffer (safety) stock protects against running out. Obsolete stock is no longer saleable, work in process is partially finished goods, and consignment stock is owned by the supplier until sold.",
+    "source": "MGCI DECA original, OP:336"
+    },
+    {
+    "cluster": "BMA",
+    "q": "A restaurant agrees to buy a set amount of produce from a supplier each week for a year at an agreed price. This type of agreement is a",
+    "options": [
+    "special order.",
+    "rush order.",
+    "blanket purchase order.",
+    "trial order."
+    ],
+    "answer": 2,
+    "explanation": "Blanket purchase order. A blanket order covers repeated purchases over a period of time, which saves time and often secures a better price. Special, rush, and trial orders are one-time purchases.",
+    "source": "MGCI DECA original, OP:250"
+    },
+    {
+    "cluster": "BMA",
+    "q": "A business keeps sales records so that managers can compare actual sales with the budget. This shows that business records are used to",
+    "options": [
+    "advertise products.",
+    "support planning and decision-making.",
+    "increase the number of employees.",
+    "replace the need for budgets."
+    ],
+    "answer": 1,
+    "explanation": "Support planning and decision-making. Records provide the information managers need to compare results, spot problems, and plan. They do not replace budgets or relate to hiring or advertising.",
+    "source": "MGCI DECA original, NF:001"
+    },
+    {
+    "cluster": "BMA",
+    "q": "Which of the following behaviours should be avoided during a group meeting:",
+    "options": [
+    "Listening to all viewpoints",
+    "Attacking someone else's idea",
+    "Asking questions to clarify a point",
+    "Sharing relevant information"
+    ],
+    "answer": 1,
+    "explanation": "Attacking someone else's idea. Personal attacks discourage participation and create conflict. Asking questions, sharing information, and listening help meetings succeed.",
+    "source": "MGCI DECA original, CO:053"
+    },
+    {
+    "cluster": "BMA",
+    "q": "A business decides not to sell a product in a market where lawsuits are common. This method of handling risk is",
+    "options": [
+    "sharing the risk.",
+    "avoiding the risk.",
+    "retaining the risk.",
+    "transferring the risk."
+    ],
+    "answer": 1,
+    "explanation": "Avoiding the risk. Risk avoidance means choosing not to take part in a risky activity. Transferring shifts risk to others, such as through insurance, retaining means accepting it, and sharing spreads it among parties.",
+    "source": "MGCI DECA original, EC:011"
+    },
+    {
+    "cluster": "BMA",
+    "q": "Assertive people",
+    "options": [
+    "avoid expressing their opinions.",
+    "always get their own way.",
+    "use threats to influence others.",
+    "respect their own rights and the rights of others."
+    ],
+    "answer": 3,
+    "explanation": "Respect their own rights and the rights of others. Assertiveness means expressing needs honestly while respecting others. Aggressive people insist on getting their way or use threats, and passive people avoid expressing opinions.",
+    "source": "MGCI DECA original, EI:008"
+    },
+    {
+    "cluster": "BMA",
+    "q": "A project tool that breaks the project's work into smaller, manageable tasks is a",
+    "options": [
+    "work breakdown structure.",
+    "balance sheet.",
+    "job description.",
+    "sales forecast."
+    ],
+    "answer": 0,
+    "explanation": "Work breakdown structure. A WBS divides the total project into deliverables and tasks so that each can be planned and assigned. Balance sheets, job descriptions, and forecasts are not project-planning tools.",
+    "source": "MGCI DECA original, PJ:006"
+    },
+    {
+    "cluster": "BMA",
+    "q": "A sales representative who visits customers' offices to explain products and answer questions is using",
+    "options": [
+    "sales promotion.",
+    "personal selling.",
+    "advertising.",
+    "publicity."
+    ],
+    "answer": 1,
+    "explanation": "Personal selling. Personal selling is direct, two-way communication with customers. Advertising and publicity are non-personal, and sales promotion uses incentives such as coupons.",
+    "source": "MGCI DECA original, MK:015"
+    },
+    {
+    "cluster": "BMA",
+    "q": "During the closing phase of a project, the team meets to discuss what went well and what could be improved. This meeting is used to",
+    "options": [
+    "create the initial budget.",
+    "assign new tasks.",
+    "identify lessons learned.",
+    "define the project scope."
+    ],
+    "answer": 2,
+    "explanation": "Identify lessons learned. Reviewing the project at its end helps future projects avoid mistakes and repeat successes. Scope, task assignments, and budgets are set earlier.",
+    "source": "MGCI DECA original, PJ:008"
+    },
+    {
+    "cluster": "BMA",
+    "q": "An applicant who has no paid work experience could strengthen his résumé by including",
+    "options": [
+    "volunteer work and school activities.",
+    "a photo of his car.",
+    "a list of his favourite movies.",
+    "his social insurance number."
+    ],
+    "answer": 0,
+    "explanation": "Volunteer work and school activities. These experiences show skills and responsibility. Personal entertainment preferences and unrelated photos are not relevant, and personal ID numbers should never be included.",
+    "source": "MGCI DECA original, PD:031"
+    },
+    {
+    "cluster": "BMA",
+    "q": "When placing a caller on hold, an employee should",
+    "options": [
+    "ask the caller's permission and thank him/her for waiting.",
+    "leave the caller on hold until he/she hangs up.",
+    "put the caller on hold without saying anything.",
+    "transfer the call to a random department."
+    ],
+    "answer": 0,
+    "explanation": "Ask the caller's permission and thank him/her for waiting. Courtesy on the phone shows respect for the caller's time. Silent holds, long waits, and random transfers frustrate callers.",
+    "source": "MGCI DECA original, CO:114"
+    },
+    {
+    "cluster": "BMA",
+    "q": "An informal communication network through which rumours spread among employees is the",
+    "options": [
+    "organizational chart.",
+    "chain of command.",
+    "formal channel.",
+    "grapevine."
+    ],
+    "answer": 3,
+    "explanation": "Grapevine. The grapevine carries unofficial information and can spread quickly, sometimes inaccurately. The chain of command and formal channels are official communication paths, and an organizational chart shows the structure.",
+    "source": "MGCI DECA original, CO:014"
+    },
+    {
+    "cluster": "BMA",
+    "q": "An employee who schedules specific times for each task in his/her day is likely to experience",
+    "options": [
+    "more interruptions.",
+    "less productivity.",
+    "reduced stress and frustration.",
+    "more missed deadlines."
+    ],
+    "answer": 2,
+    "explanation": "Reduced stress and frustration. Planning time helps employees complete work efficiently and feel more in control. It usually reduces missed deadlines and increases productivity.",
+    "source": "MGCI DECA original, PD:019"
+    },
+    {
+    "cluster": "BMA",
+    "q": "A test that measures a person's natural abilities in areas such as mechanical reasoning or verbal skills is a(n)",
+    "options": [
+    "personality inventory.",
+    "achievement test.",
+    "credit check.",
+    "aptitude test."
+    ],
+    "answer": 3,
+    "explanation": "Aptitude test. Aptitude tests identify natural talents that can guide career choices. Personality inventories describe traits, achievement tests measure what has been learned, and credit checks review borrowing history.",
+    "source": "MGCI DECA original, PD:023"
+    },
+    {
+    "cluster": "BMA",
+    "q": "Laws that set out the rights and duties of people, such as the rules for forming a contract, are",
+    "options": [
+    "procedural laws.",
+    "treaties.",
+    "bylaws.",
+    "substantive laws."
+    ],
+    "answer": 3,
+    "explanation": "Substantive laws. Substantive laws define rights and obligations. Procedural laws set out how legal rights are enforced in court, bylaws are local rules, and treaties are agreements between countries.",
+    "source": "MGCI DECA original, BL:067"
+    },
+    {
+    "cluster": "BMA",
+    "q": "Which of the following skills helps a project manager keep a project on schedule:",
+    "options": [
+    "Effective time management",
+    "Avoiding communication with the team",
+    "Changing deadlines daily",
+    "Ignoring the project plan"
+    ],
+    "answer": 0,
+    "explanation": "Effective time management. Managing time well helps project managers keep tasks moving and meet deadlines. Poor communication, ignoring the plan, and constant deadline changes cause delays.",
+    "source": "MGCI DECA original, OP:158"
+    },
+    {
+    "cluster": "BMA",
+    "q": "To prevent electrical accidents in an office, employees should",
+    "options": [
+    "avoid overloading power outlets.",
+    "run cords across walkways.",
+    "use damaged cords until they are replaced.",
+    "unplug equipment by pulling the cord."
+    ],
+    "answer": 0,
+    "explanation": "Avoid overloading power outlets. Overloaded outlets can cause fires. Damaged cords, cords across walkways, and pulling on cords create shock, fire, and tripping hazards.",
+    "source": "MGCI DECA original, OP:007"
+    },
+    {
+    "cluster": "BMA",
+    "q": "A business that trains workers to use new equipment, increasing their efficiency, benefits",
+    "options": [
+    "only the government.",
+    "only the business's competitors.",
+    "both the business and society.",
+    "no one, because training is costly."
+    ],
+    "answer": 2,
+    "explanation": "Both the business and society. More efficient workers help the business produce more at lower cost and gain skills that make them more valuable. Training is a cost, but it creates benefits.",
+    "source": "MGCI DECA original, EC:010"
+    },
+    {
+    "cluster": "ENT",
+    "q": "A luxury watch brand that allows only one retailer in each city to sell its products is using __________ distribution.",
+    "options": [
+    "exclusive",
+    "selective",
+    "mass",
+    "intensive"
+    ],
+    "answer": 0,
+    "explanation": "Exclusive. Exclusive distribution supports a prestige image and close retailer relationships. Intensive and mass distribution use many outlets, and selective uses a limited number.",
+    "source": "MGCI DECA original, CM:009"
+    },
+    {
+    "cluster": "ENT",
+    "q": "A list of all the risks a business faces, such as theft, fire, and lawsuits, is a",
+    "options": [
+    "balance sheet.",
+    "sales forecast.",
+    "purchase order.",
+    "risk inventory."
+    ],
+    "answer": 3,
+    "explanation": "Risk inventory. Identifying risks is the first step in managing them. Sales forecasts, balance sheets, and purchase orders serve different purposes.",
+    "source": "MGCI DECA original, RM:062"
+    },
+    {
+    "cluster": "ENT",
+    "q": "A letter that accompanies a formal report and introduces it to the reader is a",
+    "options": [
+    "letter of transmittal.",
+    "letter of resignation.",
+    "collection letter.",
+    "letter of application."
+    ],
+    "answer": 0,
+    "explanation": "Letter of transmittal. It explains what the report is and why it is being sent. Application, collection, and resignation letters serve other purposes.",
+    "source": "MGCI DECA original, CO:009"
+    },
+    {
+    "cluster": "ENT",
+    "q": "Involving team members in planning the details of a company event helps",
+    "options": [
+    "reduce communication.",
+    "avoid teamwork.",
+    "lower morale.",
+    "build enthusiasm and engagement."
+    ],
+    "answer": 3,
+    "explanation": "Build enthusiasm and engagement. People are more committed to plans they help create. Involvement increases communication and morale.",
+    "source": "MGCI DECA original, EI:108"
+    },
+    {
+    "cluster": "ENT",
+    "q": "\"Answer 20 more practice questions each week until the competition\" is a good goal because it is",
+    "options": [
+    "vague.",
+    "unrealistic.",
+    "set by someone else.",
+    "measurable."
+    ],
+    "answer": 3,
+    "explanation": "Measurable. Measurable goals make it easy to track progress and stay motivated. Vague, unrealistic, or externally imposed goals are less effective.",
+    "source": "MGCI DECA original, PD:257"
+    },
+    {
+    "cluster": "ENT",
+    "q": "The profits of a sole proprietorship are",
+    "options": [
+    "taxed twice like a corporation's.",
+    "taxed as the owner's personal income.",
+    "never taxed.",
+    "paid to stockholders."
+    ],
+    "answer": 1,
+    "explanation": "Taxed as the owner's personal income. Sole proprietors report business profits and losses on their personal tax returns. Corporations face double taxation, and proprietorships have no stockholders.",
+    "source": "MGCI DECA original, EC:072"
+    },
+    {
+    "cluster": "ENT",
+    "q": "A lender requires a small-business owner to promise to repay a business loan from her own assets if the business cannot. She is giving a",
+    "options": [
+    "dividend.",
+    "trade discount.",
+    "rebate.",
+    "personal guarantee."
+    ],
+    "answer": 3,
+    "explanation": "Personal guarantee. Personal guarantees make the owner responsible for business debt. Dividends, rebates, and trade discounts are unrelated.",
+    "source": "MGCI DECA original, FI:041"
+    },
+    {
+    "cluster": "ENT",
+    "q": "The percentage of people who click on an online ad after seeing it is the",
+    "options": [
+    "market share.",
+    "click-through rate.",
+    "inventory turnover.",
+    "break-even point."
+    ],
+    "answer": 1,
+    "explanation": "Click-through rate. Digital metrics help businesses measure how well online marketing engages customers. Market share, inventory turnover, and break-even point measure other things.",
+    "source": "MGCI DECA original, MP:020"
+    },
+    {
+    "cluster": "ENT",
+    "q": "On a corporation's balance sheet, retained earnings appear under",
+    "options": [
+    "current assets.",
+    "stockholders' equity.",
+    "current liabilities.",
+    "operating expenses."
+    ],
+    "answer": 1,
+    "explanation": "Stockholders' equity. Retained earnings are profits kept in the business and belong to the owners. Liabilities are debts, assets are resources owned, and operating expenses appear on the income statement.",
+    "source": "MGCI DECA original, FI:093"
+    },
+    {
+    "cluster": "ENT",
+    "q": "Which of the following is a legal issue that small businesses must be aware of:",
+    "options": [
+    "Deciding store hours",
+    "Choosing the colour of their storefront",
+    "Protecting their intellectual property",
+    "Picking employees' lunch breaks"
+    ],
+    "answer": 2,
+    "explanation": "Protecting their intellectual property. Businesses must understand laws about trademarks, patents, contracts, and liability. Colours, hours, and lunch breaks are operating choices.",
+    "source": "MGCI DECA original, BL:001"
+    },
+    {
+    "cluster": "ENT",
+    "q": "A bank denies a loan to a young entrepreneur because she has never borrowed money before. The bank's main concern is that she",
+    "options": [
+    "has too much savings.",
+    "has a strong business plan.",
+    "owns too many assets.",
+    "has no record of repaying loans."
+    ],
+    "answer": 3,
+    "explanation": "Has no record of repaying loans. Lenders use credit history to judge risk. Savings, assets, and a strong plan would make a loan more likely.",
+    "source": "MGCI DECA original, FI:034"
+    },
+    {
+    "cluster": "ENT",
+    "q": "In a corporation, the board of directors is",
+    "options": [
+    "chosen by competitors.",
+    "appointed by customers.",
+    "hired by the employees.",
+    "elected by the stockholders."
+    ],
+    "answer": 3,
+    "explanation": "Elected by the stockholders. Stockholders elect directors to oversee management on their behalf. Employees, customers, and competitors do not choose the board.",
+    "source": "MGCI DECA original, PD:214"
+    },
+    {
+    "cluster": "ENT",
+    "q": "An entrepreneur starting a T-shirt printing business will need blank shirts, ink, and a printing machine. These are the business's",
+    "options": [
+    "promotional materials.",
+    "legal documents.",
+    "raw materials and equipment.",
+    "financial statements."
+    ],
+    "answer": 2,
+    "explanation": "Raw materials and equipment. Entrepreneurs must identify all the resources needed to produce their products. Promotional materials, statements, and legal documents are other needs.",
+    "source": "MGCI DECA original, EN:009"
+    },
+    {
+    "cluster": "ENT",
+    "q": "A business has strong sales but little cash because many customers have not paid their invoices. The business has a large amount of",
+    "options": [
+    "owner's equity.",
+    "fixed assets.",
+    "accounts receivable.",
+    "accounts payable."
+    ],
+    "answer": 2,
+    "explanation": "Accounts receivable. Receivables are amounts customers owe, and high receivables can cause cash shortages. Payables are amounts the business owes.",
+    "source": "MGCI DECA original, OP:030"
+    },
+    {
+    "cluster": "ENT",
+    "q": "When disciplining an employee, a manager should focus on the behaviour and remain",
+    "options": [
+    "unpredictable.",
+    "sarcastic.",
+    "angry.",
+    "nonjudgmental."
+    ],
+    "answer": 3,
+    "explanation": "Nonjudgmental. Focusing on behaviour rather than the person keeps discipline fair and constructive. Anger, sarcasm, and unpredictability damage trust and morale.",
+    "source": "MGCI DECA original, HR:369"
+    },
+    {
+    "cluster": "ENT",
+    "q": "The process of recognizing an unmet want or need that could become a business opportunity is",
+    "options": [
+    "entrepreneurial discovery.",
+    "market saturation.",
+    "product recall.",
+    "inventory control."
+    ],
+    "answer": 0,
+    "explanation": "Entrepreneurial discovery. Entrepreneurs search for problems they can solve profitably. Market saturation, recalls, and inventory control are unrelated.",
+    "source": "MGCI DECA original, EN:001"
+    },
+    {
+    "cluster": "ENT",
+    "q": "Governments create laws that require businesses to reduce pollution in order to",
+    "options": [
+    "limit consumer choice.",
+    "raise business profits.",
+    "encourage price fixing.",
+    "protect the environment."
+    ],
+    "answer": 3,
+    "explanation": "Protect the environment. Environmental regulations protect public health and natural resources. They do not aim to raise profits, limit choice, or encourage illegal pricing.",
+    "source": "MGCI DECA original, EC:008"
+    },
+    {
+    "cluster": "ENT",
+    "q": "Providing ongoing employee training is one way a business can make sure it has",
+    "options": [
+    "fewer customers.",
+    "higher turnover.",
+    "less need for planning.",
+    "the skilled people it needs in the future."
+    ],
+    "answer": 3,
+    "explanation": "The skilled people it needs in the future. Strategic HR planning coordinates people with business goals. Training does not reduce customers or planning, and it usually lowers turnover.",
+    "source": "MGCI DECA original, HR:508"
+    },
+    {
+    "cluster": "FIN",
+    "q": "A woodworker who invents a new cutting tool and starts a company to sell it is an",
+    "options": [
+    "employee.",
+    "entrepreneur.",
+    "investor only.",
+    "consumer."
+    ],
+    "answer": 1,
+    "explanation": "Entrepreneur. Entrepreneurs turn ideas into businesses and take on risk. The other roles do not.",
+    "source": "MGCI DECA original, EN:039"
+    },
+    {
+    "cluster": "FIN",
+    "q": "The amount of time a business must keep different types of records",
+    "options": [
+    "is always one week.",
+    "is never regulated.",
+    "is the same for every document.",
+    "varies greatly depending on the record and laws."
+    ],
+    "answer": 3,
+    "explanation": "Varies greatly depending on the record and laws. Tax, payroll, and legal records have different retention requirements.",
+    "source": "MGCI DECA original, NF:001"
+    },
+    {
+    "cluster": "FIN",
+    "q": "Planning and organizing a company's finances is part of the business function of",
+    "options": [
+    "human resources.",
+    "financial analysis.",
+    "production.",
+    "marketing."
+    ],
+    "answer": 1,
+    "explanation": "Financial analysis. This function manages money and evaluates financial performance. The other functions handle different activities.",
+    "source": "MGCI DECA original, EC:071"
+    },
+    {
+    "cluster": "FIN",
+    "q": "\"This is the best investment ever\" is an example of",
+    "options": [
+    "an opinion.",
+    "a fact.",
+    "a financial statement.",
+    "a statistic."
+    ],
+    "answer": 0,
+    "explanation": "An opinion. Opinions are beliefs that cannot be proven. Facts can be verified.",
+    "source": "MGCI DECA original, NF:077"
+    },
+    {
+    "cluster": "FIN",
+    "q": "An employee who identifies her most important tasks first each morning is",
+    "options": [
+    "procrastinating.",
+    "prioritizing her time.",
+    "multitasking randomly.",
+    "avoiding work."
+    ],
+    "answer": 1,
+    "explanation": "Prioritizing her time. Prioritization ensures important work gets done. The other choices are poor time management.",
+    "source": "MGCI DECA original, PD:019"
+    },
+    {
+    "cluster": "FIN",
+    "q": "Blaming others for your own mistakes often leads to",
+    "options": [
+    "better teamwork.",
+    "resentment and loss of trust.",
+    "more respect.",
+    "promotions."
+    ],
+    "answer": 1,
+    "explanation": "Resentment and loss of trust. Accepting responsibility builds respect. Blame damages relationships.",
+    "source": "MGCI DECA original, EI:075"
+    },
+    {
+    "cluster": "FIN",
+    "q": "In a group discussion, a participant who does not understand another person's point should",
+    "options": [
+    "ask questions to clarify.",
+    "criticize the speaker.",
+    "change the subject.",
+    "stay silent."
+    ],
+    "answer": 0,
+    "explanation": "Ask questions to clarify. Clarification prevents misunderstandings. Silence and criticism hinder discussion.",
+    "source": "MGCI DECA original, CO:053"
+    },
+    {
+    "cluster": "FIN",
+    "q": "A corporation's board of directors represents the interests of the",
+    "options": [
+    "shareholders.",
+    "suppliers only.",
+    "government.",
+    "competitors."
+    ],
+    "answer": 0,
+    "explanation": "Shareholders. Directors are elected to oversee management on shareholders' behalf. They do not represent competitors.",
+    "source": "MGCI DECA original, PD:214"
+    },
+    {
+    "cluster": "FIN",
+    "q": "Financial firms monitor technology trends in order to",
+    "options": [
+    "reduce efficiency.",
+    "avoid change.",
+    "remain competitive and serve customers better.",
+    "eliminate customers."
+    ],
+    "answer": 2,
+    "explanation": "Remain competitive and serve customers better. New technology changes how services are delivered. Ignoring trends risks falling behind.",
+    "source": "MGCI DECA original, NF:013"
+    },
+    {
+    "cluster": "FIN",
+    "q": "A finance manager reviews inventory records before awarding purchasing contracts. Inventory records are an example of",
+    "options": [
+    "external publications.",
+    "internal information sources.",
+    "government statistics.",
+    "competitor data."
+    ],
+    "answer": 1,
+    "explanation": "Internal information sources. Businesses generate and keep their own records. The other sources are external.",
+    "source": "MGCI DECA original, NF:014"
+    },
+    {
+    "cluster": "FIN",
+    "q": "Effective listening requires both the speaker and the listener to",
+    "options": [
+    "avoid eye contact.",
+    "talk at the same time.",
+    "participate actively in the exchange.",
+    "think about other tasks."
+    ],
+    "answer": 2,
+    "explanation": "Participate actively in the exchange. Communication is two-way. Distractions and interruptions reduce understanding.",
+    "source": "MGCI DECA original, CO:017"
+    },
+    {
+    "cluster": "FIN",
+    "q": "A primary goal of customer relationship management is to",
+    "options": [
+    "eliminate customers.",
+    "increase complaints.",
+    "avoid customer data.",
+    "build long-term, profitable customer relationships."
+    ],
+    "answer": 3,
+    "explanation": "Build long-term, profitable customer relationships. CRM aligns business activities with customer needs. The other choices are the opposite.",
+    "source": "MGCI DECA original, CR:016"
+    },
+    {
+    "cluster": "FIN",
+    "q": "Comparing operating costs with industry standards helps a business",
+    "options": [
+    "identify cost-saving opportunities.",
+    "increase expenses.",
+    "ignore problems.",
+    "raise prices automatically."
+    ],
+    "answer": 0,
+    "explanation": "Identify cost-saving opportunities. Benchmarks reveal areas of inefficiency. They do not raise prices.",
+    "source": "MGCI DECA original, OP:159"
+    },
+    {
+    "cluster": "FIN",
+    "q": "Local laws that limit where billboards can be placed are an example of",
+    "options": [
+    "government regulation of business.",
+    "contract law.",
+    "trademark law.",
+    "consumer protection only."
+    ],
+    "answer": 0,
+    "explanation": "Government regulation of business. Governments regulate land use and advertising. The other choices are different areas of law.",
+    "source": "MGCI DECA original, BL:001"
+    },
+    {
+    "cluster": "FIN",
+    "q": "Why should individuals keep organized financial records?",
+    "options": [
+    "To eliminate the need for a bank account",
+    "To track spending, prepare taxes, and resolve disputes",
+    "To avoid paying bills on time",
+    "To impress lenders with large files"
+    ],
+    "answer": 1,
+    "explanation": "To track spending, prepare taxes, and resolve disputes. Good records show where money goes and provide proof of payments and income. They do not replace bank accounts or excuse late payments.",
+    "source": "MGCI DECA original, FI:069"
+    },
+    {
+    "cluster": "FIN",
+    "q": "A responsible employee balances his/her own needs with",
+    "options": [
+    "the needs of the team and organization.",
+    "nothing else.",
+    "competitors' needs.",
+    "personal convenience only."
+    ],
+    "answer": 0,
+    "explanation": "The needs of the team and organization. Responsibility includes considering how actions affect others.",
+    "source": "MGCI DECA original, EI:021"
+    },
+    {
+    "cluster": "FIN",
+    "q": "A financial adviser who is legally required to act in the best interests of clients has a",
+    "options": [
+    "non-compete agreement.",
+    "sales quota.",
+    "fiduciary duty.",
+    "franchise agreement."
+    ],
+    "answer": 2,
+    "explanation": "Fiduciary duty. Fiduciaries must put clients' interests ahead of their own. The other agreements do not create this obligation.",
+    "source": "MGCI DECA original, BL:133"
+    },
+    {
+    "cluster": "FIN",
+    "q": "Financial advisers who are dependable and keep their promises",
+    "options": [
+    "avoid responsibilities.",
+    "need no communication skills.",
+    "build strong client relationships.",
+    "lose clients."
+    ],
+    "answer": 2,
+    "explanation": "Build strong client relationships. Reliability creates trust and loyalty. Communication skills remain important.",
+    "source": "MGCI DECA original, CR:003"
+    },
+    {
+    "cluster": "HT",
+    "q": "An email promotion that says \"Offer ends Friday!\" is trying to",
+    "options": [
+    "confuse readers.",
+    "create a sense of urgency.",
+    "hide the offer.",
+    "discourage action."
+    ],
+    "answer": 1,
+    "explanation": "Create a sense of urgency. Deadlines encourage readers to act quickly. Bulleted content also makes emails easy to scan.",
+    "source": "MGCI DECA original, PR:279"
+    },
+    {
+    "cluster": "HT",
+    "q": "A hotel brand pays to have its logo appear inside a popular video game. This is called",
+    "options": [
+    "sampling.",
+    "direct mail.",
+    "telemarketing.",
+    "advergaming."
+    ],
+    "answer": 3,
+    "explanation": "Advergaming. Advergaming places brands in games. The other choices are different promotion methods.",
+    "source": "MGCI DECA original, PR:002"
+    },
+    {
+    "cluster": "HT",
+    "q": "A restaurant buyer negotiates frequent small deliveries instead of one large monthly delivery in order to",
+    "options": [
+    "raise storage costs.",
+    "minimize inventory investment.",
+    "reduce menu choices.",
+    "increase spoilage."
+    ],
+    "answer": 1,
+    "explanation": "Minimize inventory investment. Smaller, frequent orders keep less money tied up in stock and reduce spoilage. They do not raise costs or limit menus.",
+    "source": "MGCI DECA original, OP:015"
+    },
+    {
+    "cluster": "HT",
+    "q": "When a supervisor criticizes a server's performance, the server should",
+    "options": [
+    "ignore the comments.",
+    "take the criticism seriously and use it to improve.",
+    "argue with the supervisor.",
+    "complain to guests."
+    ],
+    "answer": 1,
+    "explanation": "Take the criticism seriously and use it to improve. Constructive criticism helps employees grow. Arguing, ignoring, and complaining damage relationships.",
+    "source": "MGCI DECA original, EI:003"
+    },
+    {
+    "cluster": "HT",
+    "q": "Checking your credit report regularly helps you",
+    "options": [
+    "find errors and avoid being denied credit.",
+    "raise your income.",
+    "lower your taxes.",
+    "close your bank account."
+    ],
+    "answer": 0,
+    "explanation": "Find errors and avoid being denied credit. Credit bureaus may make mistakes that should be corrected. Reports do not change income or taxes.",
+    "source": "MGCI DECA original, FI:072"
+    },
+    {
+    "cluster": "HT",
+    "q": "A hotel that inspects and services its air conditioning units regularly is practising",
+    "options": [
+    "overbooking.",
+    "emergency repair.",
+    "preventive maintenance.",
+    "price skimming."
+    ],
+    "answer": 2,
+    "explanation": "Preventive maintenance. Regular inspections prevent breakdowns that upset guests. Emergency repair happens after failure.",
+    "source": "MGCI DECA original, OP:032"
+    },
+    {
+    "cluster": "HT",
+    "q": "A letter of inquiry should state what information is needed",
+    "options": [
+    "at the beginning of the letter.",
+    "in a separate envelope.",
+    "only in the closing.",
+    "after several paragraphs of small talk."
+    ],
+    "answer": 0,
+    "explanation": "At the beginning of the letter. Stating the request early makes it clear and easy to answer. Delaying it confuses the reader.",
+    "source": "MGCI DECA original, CO:040"
+    },
+    {
+    "cluster": "HT",
+    "q": "A good personal budget includes a record of",
+    "options": [
+    "future vacation photos.",
+    "monthly income and expenses.",
+    "only large purchases.",
+    "friends' spending."
+    ],
+    "answer": 1,
+    "explanation": "Monthly income and expenses. Budgets compare money coming in with money going out. Recording only some spending gives an incomplete picture.",
+    "source": "MGCI DECA original, FI:579"
+    },
+    {
+    "cluster": "HT",
+    "q": "A hotel's accounts payable clerk notices that a supplier billed the hotel twice. The clerk should",
+    "options": [
+    "pay both bills.",
+    "ignore the error.",
+    "stop ordering from all suppliers.",
+    "contact the supplier to resolve the error."
+    ],
+    "answer": 3,
+    "explanation": "Contact the supplier to resolve the error. Monitoring payables helps control expenses. Paying twice or ignoring errors wastes money.",
+    "source": "MGCI DECA original, OP:184"
+    },
+    {
+    "cluster": "HT",
+    "q": "An employee who adds false expenses to an expense report to receive extra money is",
+    "options": [
+    "negotiating a discount.",
+    "following company policy.",
+    "padding an expense account.",
+    "controlling costs."
+    ],
+    "answer": 2,
+    "explanation": "Padding an expense account. This is a form of fraud that businesses try to prevent through reviews and receipts. It is not policy, negotiation, or cost control.",
+    "source": "MGCI DECA original, OP:013"
+    },
+    {
+    "cluster": "HT",
+    "q": "Determining what training resources new employees will need is a responsibility of",
+    "options": [
+    "the maintenance department.",
+    "the accounting department.",
+    "human resources.",
+    "the marketing department."
+    ],
+    "answer": 2,
+    "explanation": "Human resources. HR plans recruitment, orientation, and training. The other departments have different responsibilities.",
+    "source": "MGCI DECA original, HR:410"
+    },
+    {
+    "cluster": "HT",
+    "q": "Meeting deadlines and avoiding personal use of supplies help a business",
+    "options": [
+    "raise prices.",
+    "reduce quality.",
+    "increase its waste.",
+    "control its expenses."
+    ],
+    "answer": 3,
+    "explanation": "Control its expenses. Every employee affects costs through daily habits. These behaviours reduce, not increase, waste.",
+    "source": "MGCI DECA original, OP:025"
+    },
+    {
+    "cluster": "HT",
+    "q": "A note-taking method that divides the page into sections for notes, key words, and a summary is the",
+    "options": [
+    "shorthand method.",
+    "mind-map method only.",
+    "outline method only.",
+    "Cornell method."
+    ],
+    "answer": 3,
+    "explanation": "Cornell method. The Cornell system organizes notes for easy review. The other methods are organized differently.",
+    "source": "MGCI DECA original, CO:085"
+    },
+    {
+    "cluster": "HT",
+    "q": "Employees who act responsibly usually",
+    "options": [
+    "need constant monitoring.",
+    "miss deadlines.",
+    "avoid tasks.",
+    "require less supervision."
+    ],
+    "answer": 3,
+    "explanation": "Require less supervision. Responsible employees can be trusted to complete work. The other choices describe irresponsible behaviour.",
+    "source": "MGCI DECA original, EI:021"
+    },
+    {
+    "cluster": "HT",
+    "q": "A hotel employee who sits up straight and greets guests warmly at the front desk is projecting a",
+    "options": [
+    "careless attitude.",
+    "negative impression.",
+    "casual style.",
+    "professional image."
+    ],
+    "answer": 3,
+    "explanation": "Professional image. Posture and manner contribute to how guests see employees and the hotel. These behaviours create a positive impression.",
+    "source": "MGCI DECA original, PD:002"
+    },
+    {
+    "cluster": "HT",
+    "q": "The study of how people use limited resources to satisfy their wants is",
+    "options": [
+    "accounting.",
+    "economics.",
+    "law.",
+    "marketing."
+    ],
+    "answer": 1,
+    "explanation": "Economics. Economics studies choices about production, distribution, and consumption. Accounting, marketing, and law are other fields.",
+    "source": "MGCI DECA original, EC:001"
+    },
+    {
+    "cluster": "HT",
+    "q": "Accounting helps a hotel owner",
+    "options": [
+    "understand how the business is doing financially.",
+    "design the website.",
+    "choose staff uniforms.",
+    "decorate the rooms."
+    ],
+    "answer": 0,
+    "explanation": "Understand how the business is doing financially. Accounting records and statements show profits, costs, and financial position. They do not guide decor or design.",
+    "source": "MGCI DECA original, FI:085"
+    },
+    {
+    "cluster": "HT",
+    "q": "A hotel brand in the maturity stage of its life cycle may refresh its rooms and services in order to",
+    "options": [
+    "enter the introduction stage.",
+    "stay competitive and attract guests.",
+    "reduce guest satisfaction.",
+    "eliminate marketing."
+    ],
+    "answer": 1,
+    "explanation": "Stay competitive and attract guests. Product updates can extend the maturity stage. They do not reduce satisfaction or eliminate marketing.",
+    "source": "MGCI DECA original, PM:001"
+    },
+    {
+    "cluster": "MKT",
+    "q": "A purchasing employee checks incoming goods against the purchase order before accepting them. This helps ensure",
+    "options": [
+    "quality and accuracy of shipments.",
+    "more employees.",
+    "higher prices.",
+    "faster advertising."
+    ],
+    "answer": 0,
+    "explanation": "Quality and accuracy of shipments. Inspecting goods on receipt catches errors and damage. It does not affect prices or advertising.",
+    "source": "MGCI DECA original, OP:190"
+    },
+    {
+    "cluster": "MKT",
+    "q": "Before selling a new product line, salespeople should learn the products' features, uses, and",
+    "options": [
+    "manufacturers' payroll costs.",
+    "the company's tax returns.",
+    "benefits to customers.",
+    "competitors' employees' names."
+    ],
+    "answer": 2,
+    "explanation": "Benefits to customers. Customers buy benefits, so salespeople must explain how features help them. Payroll costs, competitors' employees, and tax returns are not useful selling information.",
+    "source": "MGCI DECA original, SE:062"
+    },
+    {
+    "cluster": "MKT",
+    "q": "A creativity technique that compares a problem to an unrelated object, such as \"How is our store like a beehive?\", is",
+    "options": [
+    "price lining.",
+    "forced analogy.",
+    "test marketing.",
+    "market segmentation."
+    ],
+    "answer": 1,
+    "explanation": "Forced analogy. Forced analogies spark new ideas by connecting unrelated things. Test marketing, price lining, and segmentation are other marketing activities.",
+    "source": "MGCI DECA original, PM:127"
+    },
+    {
+    "cluster": "MKT",
+    "q": "Analytics tools that recommend the best action to take, such as the ideal price, are",
+    "options": [
+    "descriptive statistics only.",
+    "prescriptive analytics.",
+    "manual records.",
+    "word processing."
+    ],
+    "answer": 1,
+    "explanation": "Prescriptive analytics. Prescriptive analytics suggest decisions based on data. Descriptive statistics summarize past data, and the other choices do not analyze data.",
+    "source": "MGCI DECA original, NF:139"
+    },
+    {
+    "cluster": "MKT",
+    "q": "A product's position is ultimately determined by",
+    "options": [
+    "the date it was produced.",
+    "the number of employees who made it.",
+    "the company's office location.",
+    "how customers perceive it compared with competitors."
+    ],
+    "answer": 3,
+    "explanation": "How customers perceive it compared with competitors. Positioning exists in customers' minds. Employees, location, and production date do not define position.",
+    "source": "MGCI DECA original, PM:042"
+    },
+    {
+    "cluster": "MKT",
+    "q": "An executive summary should be written for readers who",
+    "options": [
+    "want every detail.",
+    "will not read the entire report.",
+    "prefer technical appendices.",
+    "are the report's authors."
+    ],
+    "answer": 1,
+    "explanation": "Will not read the entire report. The executive summary gives busy readers the key findings and recommendations. Detailed readers use the full report.",
+    "source": "MGCI DECA original, CO:091"
+    },
+    {
+    "cluster": "MKT",
+    "q": "When a job application asks for information that does not apply to you, you should",
+    "options": [
+    "write \"N/A\" in the space.",
+    "make up an answer.",
+    "leave the space blank.",
+    "write a nickname."
+    ],
+    "answer": 0,
+    "explanation": "Write \"N/A\" in the space. Writing \"not applicable\" shows the question was read. Blank spaces may look careless, and false or informal answers are inappropriate.",
+    "source": "MGCI DECA original, PD:027"
+    },
+    {
+    "cluster": "MKT",
+    "q": "Thanking customers for their business is a simple way to",
+    "options": [
+    "create positive customer relationships.",
+    "raise prices.",
+    "avoid complaints.",
+    "reduce customer contact."
+    ],
+    "answer": 0,
+    "explanation": "Create positive customer relationships. Showing appreciation makes customers feel valued and encourages loyalty. It does not set prices or prevent all complaints.",
+    "source": "MGCI DECA original, CR:003"
+    },
+    {
+    "cluster": "MKT",
+    "q": "Setting aside money regularly to pay for a child's future education is an example of",
+    "options": [
+    "borrowing.",
+    "saving for a goal.",
+    "gambling.",
+    "impulse spending."
+    ],
+    "answer": 1,
+    "explanation": "Saving for a goal. Saving helps people pay for future needs such as education or retirement. The other choices do not build savings.",
+    "source": "MGCI DECA original, FI:270"
+    },
+    {
+    "cluster": "MKT",
+    "q": "Businesses decide what to produce based largely on",
+    "options": [
+    "the weather alone.",
+    "consumer demand.",
+    "their employees' preferences.",
+    "competitors' office locations."
+    ],
+    "answer": 1,
+    "explanation": "Consumer demand. In a market economy, demand signals what consumers want. Employee preferences, weather alone, and competitors' locations do not determine production.",
+    "source": "MGCI DECA original, EC:005"
+    },
+    {
+    "cluster": "MKT",
+    "q": "After collecting completed surveys, a researcher's next step is usually to",
+    "options": [
+    "enter the data into a computer for analysis.",
+    "choose a new sample.",
+    "throw away incomplete surveys without review.",
+    "write the final recommendations immediately."
+    ],
+    "answer": 0,
+    "explanation": "Enter the data into a computer for analysis. Data must be organized and processed before it can be analyzed. Recommendations come after analysis.",
+    "source": "MGCI DECA original, IM:062"
+    },
+    {
+    "cluster": "MKT",
+    "q": "A snack manufacturer adds a new flavour to keep its product line current. This production decision is made to",
+    "options": [
+    "eliminate marketing.",
+    "avoid using natural resources.",
+    "reduce the number of customers.",
+    "update the product and stay competitive."
+    ],
+    "answer": 3,
+    "explanation": "Update the product and stay competitive. Production responds to market needs and trends. It does not aim to reduce customers or eliminate marketing.",
+    "source": "MGCI DECA original, OP:017"
+    },
+    {
+    "cluster": "MKT",
+    "q": "Answering a business phone with \"Betty Clark's desk\" instead of a full professional greeting is a problem because it",
+    "options": [
+    "asks the caller a question.",
+    "does not project a professional image of the business.",
+    "includes the company's name.",
+    "is too long."
+    ],
+    "answer": 1,
+    "explanation": "Does not project a professional image of the business. A good greeting identifies the business and the speaker and offers help. The short greeting omits the company and an offer of assistance.",
+    "source": "MGCI DECA original, CO:114"
+    },
+    {
+    "cluster": "MKT",
+    "q": "Thinking about what you value most, such as creativity or helping others, can help you",
+    "options": [
+    "copy a friend's career choice.",
+    "avoid career planning.",
+    "choose the highest-paying job only.",
+    "identify an appropriate career."
+    ],
+    "answer": 3,
+    "explanation": "Identify an appropriate career. Careers that match personal values tend to be more satisfying. Pay alone or copying others ignores personal fit.",
+    "source": "MGCI DECA original, PD:013"
+    },
+    {
+    "cluster": "MKT",
+    "q": "Decisions that are made often and follow established rules, such as reordering a standard item, are",
+    "options": [
+    "emergency decisions.",
+    "major decisions.",
+    "strategic decisions.",
+    "routine decisions."
+    ],
+    "answer": 3,
+    "explanation": "Routine decisions. Routine decisions are made quickly using existing procedures. Major and strategic decisions require more analysis.",
+    "source": "MGCI DECA original, PD:017"
+    },
+    {
+    "cluster": "MKT",
+    "q": "Employees who stay calm and work to prevent a problem from getting worse during an uncertain situation show",
+    "options": [
+    "indifference.",
+    "aggression.",
+    "panic.",
+    "emotional competence."
+    ],
+    "answer": 3,
+    "explanation": "Emotional competence. Managing emotions under pressure is a key emotional intelligence skill. Indifference, panic, and aggression make situations worse.",
+    "source": "MGCI DECA original, EI:009"
+    },
+    {
+    "cluster": "MKT",
+    "q": "The profit an investor earns on an investment is its",
+    "options": [
+    "risk.",
+    "liability.",
+    "principal.",
+    "return."
+    ],
+    "answer": 3,
+    "explanation": "Return. Return is the gain from an investment. The principal is the original amount, risk is uncertainty, and liabilities are debts.",
+    "source": "MGCI DECA original, FI:077"
+    },
+    {
+    "cluster": "MKT",
+    "q": "When a coworker disagrees with your marketing idea during a meeting, the best response is to",
+    "options": [
+    "refuse to discuss it.",
+    "raise your voice.",
+    "criticize the coworker personally.",
+    "present supporting research for your idea."
+    ],
+    "answer": 3,
+    "explanation": "Present supporting research for your idea. Evidence helps others evaluate ideas objectively. Shouting, refusing, and personal criticism damage discussion.",
+    "source": "MGCI DECA original, CO:061"
+    },
+    {
+    "cluster": "PFL",
+    "q": "Before negotiating the price of a car, a buyer should",
+    "options": [
+    "tell the seller the maximum budget.",
+    "shop at only one dealer.",
+    "research prices ahead of time.",
+    "accept the first offer."
+    ],
+    "answer": 2,
+    "explanation": "Research prices ahead of time. Knowledge strengthens the buyer's position. Revealing budgets or accepting first offers weakens it.",
+    "source": "MGCI DECA original, SE:392"
+    },
+    {
+    "cluster": "PFL",
+    "q": "The main purpose of reconciling a bank statement is to",
+    "options": [
+    "make sure your records match the bank's records.",
+    "close the account.",
+    "increase your balance.",
+    "apply for a loan."
+    ],
+    "answer": 0,
+    "explanation": "Make sure your records match the bank's records. Reconciling finds errors and unauthorized transactions. It does not change the balance or apply for credit.",
+    "source": "MGCI DECA original, FI:070"
+    },
+    {
+    "cluster": "PFL",
+    "q": "Owners of common stock usually have the right to",
+    "options": [
+    "be repaid before creditors.",
+    "receive guaranteed dividends.",
+    "vote on important company decisions.",
+    "manage daily operations."
+    ],
+    "answer": 2,
+    "explanation": "Vote on important company decisions. Shareholders elect directors and vote on major issues. Dividends are not guaranteed, and creditors are paid first.",
+    "source": "MGCI DECA original, PD:309"
+    },
+    {
+    "cluster": "PFL",
+    "q": "Government agencies that test food and drugs for safety help to",
+    "options": [
+    "protect consumers.",
+    "eliminate competition.",
+    "advertise products.",
+    "raise product prices."
+    ],
+    "answer": 0,
+    "explanation": "Protect consumers. Safety regulators set standards and can order recalls. They do not advertise or raise prices.",
+    "source": "MGCI DECA original, PM:017"
+    },
+    {
+    "cluster": "PFL",
+    "q": "When the cost of groceries rises faster than people's paycheques, households",
+    "options": [
+    "have more money to save.",
+    "pay lower taxes.",
+    "can buy less with the same income.",
+    "receive automatic raises."
+    ],
+    "answer": 2,
+    "explanation": "Can buy less with the same income. Rising living costs reduce purchasing power. They do not increase savings or trigger automatic raises.",
+    "source": "MGCI DECA original, FI:091"
+    },
+    {
+    "cluster": "PFL",
+    "q": "An insurance agent who sells policies from several different insurance companies is an",
+    "options": [
+    "exclusive agent.",
+    "actuary.",
+    "independent agent.",
+    "underwriter."
+    ],
+    "answer": 2,
+    "explanation": "Independent agent. Independent agents can compare policies from many insurers. Exclusive agents represent one company.",
+    "source": "MGCI DECA original, FI:082"
+    },
+    {
+    "cluster": "PFL",
+    "q": "Money that an employer withholds from a paycheque for income tax and pension contributions are",
+    "options": [
+    "tips.",
+    "bonuses.",
+    "payroll deductions.",
+    "commissions."
+    ],
+    "answer": 2,
+    "explanation": "Payroll deductions. Deductions reduce gross pay to net pay. Bonuses, commissions, and tips add to pay.",
+    "source": "MGCI DECA original, FI:068"
+    },
+    {
+    "cluster": "PFL",
+    "q": "Expenses that a taxpayer lists individually to reduce taxable income, such as certain charitable donations, are",
+    "options": [
+    "penalties.",
+    "deductions.",
+    "refunds.",
+    "wages."
+    ],
+    "answer": 1,
+    "explanation": "Deductions. Deductions lower the income on which tax is calculated. Refunds return overpaid tax, and penalties are charges.",
+    "source": "MGCI DECA original, FI:074"
+    },
+    {
+    "cluster": "PFL",
+    "q": "Ratios that measure a company's ability to pay its short-term debts are",
+    "options": [
+    "valuation ratios.",
+    "growth ratios.",
+    "profitability ratios.",
+    "liquidity ratios."
+    ],
+    "answer": 3,
+    "explanation": "Liquidity ratios. Liquidity ratios, such as the current ratio, show short-term financial strength. The other ratios measure different things.",
+    "source": "MGCI DECA original, FI:281"
+    },
+    {
+    "cluster": "PFL",
+    "q": "In a stock listing, the difference between today's closing price and yesterday's closing price is the",
+    "options": [
+    "net change.",
+    "volume.",
+    "52-week high.",
+    "dividend."
+    ],
+    "answer": 0,
+    "explanation": "Net change. Net change shows how much the price moved. Dividends are payments, volume is shares traded, and the 52-week high is the highest price in a year.",
+    "source": "MGCI DECA original, FI:275"
+    },
+    {
+    "cluster": "PFL",
+    "q": "Group health and dental plans are often provided to workers by",
+    "options": [
+    "employers.",
+    "stock exchanges.",
+    "landlords.",
+    "credit bureaus."
+    ],
+    "answer": 0,
+    "explanation": "Employers. Many employers offer benefits as part of compensation. The other organizations do not.",
+    "source": "MGCI DECA original, PD:330"
+    },
+    {
+    "cluster": "PFL",
+    "q": "Auto insurance that pays to repair your car after an accident, regardless of who was at fault, is",
+    "options": [
+    "liability coverage.",
+    "collision coverage.",
+    "renter's insurance.",
+    "life insurance."
+    ],
+    "answer": 1,
+    "explanation": "Collision coverage. Collision covers damage to your own car from accidents. Liability covers damage to others.",
+    "source": "MGCI DECA original, PD:319"
+    },
+    {
+    "cluster": "PFL",
+    "q": "Unlike individual stocks, most mutual funds",
+    "options": [
+    "have no professional managers.",
+    "are bought and sold at a price set once at the end of the trading day.",
+    "can only be held for one day.",
+    "guarantee returns."
+    ],
+    "answer": 1,
+    "explanation": "Are bought and sold at a price set once at the end of the trading day. Mutual funds are priced daily, while stocks trade throughout the day. Funds are professionally managed and not guaranteed.",
+    "source": "MGCI DECA original, PD:304"
+    },
+    {
+    "cluster": "PFL",
+    "q": "When progress toward a goal is slow, a successful person usually",
+    "options": [
+    "keeps at it and adjusts the plan if needed.",
+    "gives up immediately.",
+    "sets no further goals.",
+    "blames others."
+    ],
+    "answer": 0,
+    "explanation": "Keeps at it and adjusts the plan if needed. Persistence and flexibility help people reach goals. Quitting or blaming others does not.",
+    "source": "MGCI DECA original, PD:018"
+    },
+    {
+    "cluster": "PFL",
+    "q": "Because people cannot have everything they want, they must make choices. This basic economic problem is called",
+    "options": [
+    "inflation.",
+    "profit.",
+    "surplus.",
+    "scarcity."
+    ],
+    "answer": 3,
+    "explanation": "Scarcity. Limited resources and unlimited wants force choices. Inflation, surplus, and profit are other economic concepts.",
+    "source": "MGCI DECA original, EC:001"
+    },
+    {
+    "cluster": "PFL",
+    "q": "An employer retirement plan in which the amount you receive depends on how much was contributed and how the investments performed is a",
+    "options": [
+    "savings bond.",
+    "defined benefit plan.",
+    "defined contribution plan.",
+    "term life policy."
+    ],
+    "answer": 2,
+    "explanation": "Defined contribution plan. The retirement amount is not guaranteed and depends on contributions and returns. Defined benefit plans promise a set payment.",
+    "source": "MGCI DECA original, FI:569"
+    },
+    {
+    "cluster": "PFL",
+    "q": "Before hiring a financial planner, a consumer should ask, \"How are your fees structured?\" in order to",
+    "options": [
+    "understand how the planner is paid and any conflicts of interest.",
+    "learn where the planner went on vacation.",
+    "decide what to eat for lunch.",
+    "find out the planner's favourite stock."
+    ],
+    "answer": 0,
+    "explanation": "Understand how the planner is paid and any conflicts of interest. Fee-only, commission, and salary structures can affect advice. The other questions are irrelevant.",
+    "source": "MGCI DECA original, FI:076"
+    },
+    {
+    "cluster": "PFL",
+    "q": "Roads, highways, and bridges built by governments are examples of",
+    "options": [
+    "human resources.",
+    "capital resources.",
+    "consumer goods.",
+    "natural resources."
+    ],
+    "answer": 1,
+    "explanation": "Capital resources. Infrastructure is human-made and used to produce and deliver goods and services. Natural resources come from nature.",
+    "source": "MGCI DECA original, EC:003"
+    }
+    ];
 
   /* ---------- Demo seed (fake people, demo mode only) ---------- */
   LB.buildDemoSeed = function () {

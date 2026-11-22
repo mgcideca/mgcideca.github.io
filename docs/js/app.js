@@ -383,27 +383,97 @@
       </aside>
     </div>`;
   }
+  const meters = (items, digits = 0) => `<ul class="meters">${items.map((m) => `<li><span class="m-name">${esc(m.name)}${m.note ? `<small>${esc(m.note)}</small>` : ""}</span><span class="m-bar"><i style="width:${Math.max(0, Math.min(100, m.pct)).toFixed(1)}%"></i></span><span class="m-val">${fmt(m.pct, digits)}%</span></li>`).join("")}</ul>`;
+
+  /* ---------- performance indicators ---------- */
+  const PIS = window.LB_PIS || { year: "", areas: {}, names: {}, exam: {}, remap: {} };
+  const PI_RE = /\b([A-Z]{2,3}):(\d{3})\b/;
+  const piCache = new WeakMap();
+  // A question's PI: its own pi field, or the code in its source ("MGCI DECA original, MK:015"), updated to the current list
+  function piOf(q) {
+    if (!q || typeof q !== "object") return "";
+    if (piCache.has(q)) return piCache.get(q);
+    const m = String(q.pi || "").toUpperCase().match(PI_RE) || String(q.source || "").match(PI_RE);
+    const code = m ? PIS.remap[m[0]] || m[0] : "";
+    piCache.set(q, code);
+    return code;
+  }
+  const piArea = (code) => String(code || "").split(":")[0];
+  const areaName = (a) => PIS.areas[a] || a || "Not tagged";
+  const piName = (code) => PIS.names[code] || "";
+  const piLabel = (code) => (code ? `${code} ${piName(code)}`.trim() : "Not tagged");
+  const PI_CREDIT = `Performance indicator codes and names are from the ${PIS.year || "current"} DECA performance indicator lists, by DECA Inc. and MBA Research.`;
+
+  // Which questions match a cluster, a PI choice ("all", "area:XX" or a code) and a pool ("any", "bookmarks", "missed")
+  function examPool(questions, hist, { cluster = "all", pi = "all", pool = "any" }) {
+    return questions.filter((q) => {
+      if (!Array.isArray(q.options) || q.options.length < 2) return false;
+      if (cluster !== "all" && q.cluster !== cluster) return false;
+      if (pi !== "all") { const c = piOf(q); if (pi.startsWith("area:") ? piArea(c) !== pi.slice(5) : c !== pi) return false; }
+      if (pool === "bookmarks" && !hist.bookmarks.has(q.id)) return false;
+      if (pool === "missed" && hist.last.get(q.id) !== 0) return false;
+      return true;
+    });
+  }
+  function piOptionsHtml(questions, cluster, selected = "all") {
+    const areas = {};
+    questions.forEach((q) => {
+      if (cluster !== "all" && q.cluster !== cluster) return;
+      const c = piOf(q);
+      if (!c) return;
+      const a = (areas[piArea(c)] = areas[piArea(c)] || { n: 0, pis: {} });
+      a.n++; a.pis[c] = (a.pis[c] || 0) + 1;
+    });
+    const sel = (v) => (v === selected ? " selected" : "");
+    return `<option value="all"${sel("all")}>All performance indicators</option>` + Object.keys(areas).sort((x, y) => areaName(x).localeCompare(areaName(y))).map((k) => {
+      const a = areas[k];
+      return `<optgroup label="${esc(areaName(k))}"><option value="area:${esc(k)}"${sel("area:" + k)}>All of ${esc(areaName(k))} (${a.n})</option>${Object.keys(a.pis).sort().map((c) => `<option value="${esc(c)}"${sel(c)}>${esc(piLabel(c))} (${a.pis[c]})</option>`).join("")}</optgroup>`;
+    }).join("");
+  }
+  // First-try and latest-try accuracy, grouped by PI or by instructional area
+  function piStats(questions, hist, { by = "area", cluster = "all" } = {}) {
+    const g = {};
+    questions.forEach((q) => {
+      if (cluster !== "all" && q.cluster !== cluster) return;
+      const ok = hist.ok.get(q.id), last = hist.last.get(q.id);
+      if (ok === undefined && last === undefined) return;
+      const c = piOf(q);
+      if (!c) return;
+      const key = by === "area" ? piArea(c) : c;
+      const r = (g[key] = g[key] || { key, n: 0, ok: 0, ln: 0, last: 0 });
+      if (ok !== undefined) { r.n++; r.ok += ok; }
+      if (last !== undefined) { r.ln++; r.last += last; }
+    });
+    return Object.values(g).map((r) => ({ ...r, pct: r.n ? (r.ok / r.n) * 100 : null, lastPct: r.ln ? (r.last / r.ln) * 100 : null }))
+      .sort((a, b) => ((b.n >= 3) - (a.n >= 3)) || (a.pct ?? 101) - (b.pct ?? 101) || b.n - a.n);
+  }
+
   async function practiceExams() {
-    const [questions, seen, attempts, d] = await Promise.all([S.be.listQuestions(), S.be.getSeen(), S.be.listMyAttempts(), loadData()]);
+    const [questions, hist, attempts, d] = await Promise.all([S.be.listQuestions(), S.be.getHistory(), S.be.listMyAttempts(), loadData()]);
+    S.exam = { questions, hist };
     const counts = {};
     questions.forEach((q) => { counts[q.cluster] = (counts[q.cluster] || 0) + 1; });
-    const unseenAll = questions.filter((q) => !seen.has(q.id)).length;
+    const f = S.ui.examForm || { cluster: "all", pi: "all", pool: "any", len: 10, unseenFirst: true };
     const byC = {};
     d.examStats.filter((x) => x.uid === S.me.uid).forEach((x) => Object.entries(x.byCluster || {}).forEach(([c, v]) => { byC[c] = byC[c] || { a: 0, c: 0 }; byC[c].a += v.a; byC[c].c += v.c; }));
     const recent = attempts.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)).slice(0, 6);
+    const bms = questions.filter((q) => hist.bookmarks.has(q.id));
 
     return `
     <p class="board-blurb">Questions you haven't seen before count toward points and accuracy. Repeats are for review.</p>
     <div class="split">
       <section class="panel pad">
         <h2>New exam</h2>
-        <form data-form="startQuiz" class="form">
-          <label>Cluster<select name="cluster"><option value="all">All clusters (${questions.length} questions)</option>${LB.CLUSTERS.map((c) => `<option value="${c.id}" ${!counts[c.id] ? "disabled" : ""}>${esc(c.name)} (${counts[c.id] || 0})</option>`).join("")}</select></label>
+        <form data-form="startQuiz" class="form" id="examForm">
+          <label>Cluster<select name="cluster" data-change="examForm"><option value="all">All clusters (${questions.length} questions)</option>${LB.CLUSTERS.map((c) => `<option value="${c.id}" ${!counts[c.id] ? "disabled" : ""} ${f.cluster === c.id ? "selected" : ""}>${esc(c.name)} (${counts[c.id] || 0})</option>`).join("")}</select></label>
+          <label>Performance indicator<select name="pi" data-change="examForm">${piOptionsHtml(questions, f.cluster, f.pi)}</select></label>
+          <label>Questions<select name="pool" data-change="examForm">${poolOptionsHtml(questions, hist, f)}</select></label>
           <fieldset><legend>Length</legend>
-            <div class="seg">${[10, 20, 50, 100].map((n, i) => `<label><input type="radio" name="len" value="${n}" ${i === 0 ? "checked" : ""}><span>${n === 100 ? "100, full exam" : n}</span></label>`).join("")}</div>
+            <div class="seg">${[10, 20, 50, 100].map((n) => `<label><input type="radio" name="len" value="${n}" ${n === Number(f.len) ? "checked" : ""}><span>${n === 100 ? "100, full exam" : n}</span></label>`).join("")}</div>
           </fieldset>
-          <label class="check"><input type="checkbox" name="unseenFirst" checked> Start with questions I haven't seen</label>
-          <div class="actions"><button class="btn">Start exam</button><span class="fine">${unseenAll} of ${questions.length} questions are new to you. Press 1 to 4 to answer and Enter to continue.</span></div>
+          <label class="check"><input type="checkbox" name="unseenFirst" ${f.unseenFirst ? "checked" : ""}> Start with questions I haven't seen</label>
+          <div class="actions"><button class="btn">Start exam</button><span class="fine" id="examMatch">${matchLine(questions, hist, f)}</span></div>
+          <p class="fine">Press 1 to 4 to answer, Enter to continue and S to bookmark a question.</p>
         </form>
       </section>
       <aside>
@@ -412,18 +482,93 @@
           ${Object.keys(byC).length ? meters(Object.entries(byC).sort((a, b) => b[1].a - a[1].a).map(([c, v]) => ({ name: LB.clusterName(c), note: `${v.c} of ${v.a}`, pct: v.a ? (v.c / v.a) * 100 : 0 }))) : `<p class="muted">Your accuracy shows up here after your first exam.</p>`}
         </section>
         <section class="side-block">
+          <h2>Bookmarks</h2>
+          ${bms.length ? `<p>${plural(bms.length, "bookmarked question")}.</p>
+            <div class="actions"><button class="btn secondary" data-action="practiseBookmarks">Practise my bookmarks</button></div>
+            <details class="bm-list"><summary>Show my bookmarks</summary><ol>${bms.slice(0, 100).map((q) => `<li><p>${esc(q.q)}</p><p class="muted">${esc(LB.clusterName(q.cluster))}${piOf(q) ? `. ${esc(piLabel(piOf(q)))}` : ""}</p><button class="link" data-action="bookmark" data-id="${esc(q.id)}">Remove bookmark</button></li>`).join("")}</ol></details>`
+            : `<p class="muted">Press the bookmark button on any question to save it here and practise it again later.</p>`}
+        </section>
+        <section class="side-block">
           <h2>Recent exams</h2>
-          ${recent.length ? `<table class="plain"><tbody>${recent.map((a) => `<tr><td>${fmtDate(a.date)}</td><td>${esc(a.cluster === "all" ? "Mixed" : LB.clusterName(a.cluster))}</td><td class="num">${a.correct}/${a.total}</td></tr>`).join("")}</tbody></table>` : `<p class="muted">None yet.</p>`}
+          ${recent.length ? `<table class="plain"><tbody>${recent.map((a) => `<tr><td>${fmtDate(a.date)}</td><td>${esc(attemptLabel(a))}</td><td class="num">${a.correct}/${a.total}</td></tr>`).join("")}</tbody></table>` : `<p class="muted">None yet.</p>`}
         </section>
       </aside>
     </div>
+    ${piStatsBlock(questions, hist)}
     <aside class="q-note" aria-label="About these questions">
       <h2>About these questions</h2>
       <p>Every question in this bank is original. They were written for ${esc(CFG.chapterName || "our chapter")} to cover the same topics and use the same style as DECA's cluster exams, but none of them are copied from official DECA exams. Official exams are copyrighted by DECA Inc. and MBA Research and are not posted here.</p>
       <p>Use them for practice and review. Your score here is a guide, not a prediction of your score at competition.</p>
+      <p>${esc(PI_CREDIT)}</p>
     </aside>`;
   }
-  const meters = (items, digits = 0) => `<ul class="meters">${items.map((m) => `<li><span class="m-name">${esc(m.name)}${m.note ? `<small>${esc(m.note)}</small>` : ""}</span><span class="m-bar"><i style="width:${Math.max(0, Math.min(100, m.pct)).toFixed(1)}%"></i></span><span class="m-val">${fmt(m.pct, digits)}%</span></li>`).join("")}</ul>`;
+  const attemptLabel = (a) => {
+    const base = a.cluster === "all" ? "Mixed" : LB.clusterName(a.cluster);
+    if (a.pool === "bookmarks") return base + ", bookmarks";
+    if (a.pool === "missed") return base + ", missed questions";
+    if (a.pi && a.pi !== "all") return a.pi.startsWith("area:") ? areaName(a.pi.slice(5)) : a.pi;
+    return base;
+  };
+  function poolOptionsHtml(questions, hist, f) {
+    const base = examPool(questions, hist, { ...f, pool: "any" });
+    const nb = base.filter((q) => hist.bookmarks.has(q.id)).length;
+    const nm = base.filter((q) => hist.last.get(q.id) === 0).length;
+    const o = (v, label) => `<option value="${v}" ${f.pool === v ? "selected" : ""}>${label}</option>`;
+    return o("any", `Any question (${base.length})`) + o("bookmarks", `Only my bookmarks (${nb})`) + o("missed", `Only ones I got wrong last time (${nm})`);
+  }
+  function matchLine(questions, hist, f) {
+    const pool = examPool(questions, hist, f);
+    if (!pool.length) return f.pool === "bookmarks" ? "None of your bookmarks match. Choose another cluster or indicator." : f.pool === "missed" ? "No missed questions match. Nice work." : "No questions match these choices.";
+    const n = pool.filter((q) => !hist.seen.has(q.id)).length;
+    return `${plural(pool.length, "question")} ${pool.length === 1 ? "matches" : "match"}. ${n === 0 ? "You've seen all of them before" : n === pool.length ? (n === 1 ? "It's new to you" : "All are new to you") : `${n} ${n === 1 ? "is" : "are"} new to you`}.`;
+  }
+  function readExamForm(form) {
+    const fd = new FormData(form);
+    return { cluster: fd.get("cluster") || "all", pi: fd.get("pi") || "all", pool: fd.get("pool") || "any", len: Number(fd.get("len")) || 10, unseenFirst: !!fd.get("unseenFirst") };
+  }
+  // Keep the indicator list, the counts and the match line in step with the form
+  function refreshExamForm(form, changed) {
+    if (!S.exam) return;
+    const { questions, hist } = S.exam;
+    const f = readExamForm(form);
+    if (changed === "cluster") {
+      const sel = form.querySelector('[name="pi"]');
+      const keep = f.pi;
+      sel.innerHTML = piOptionsHtml(questions, f.cluster, keep);
+      f.pi = sel.value;
+    }
+    form.querySelector('[name="pool"]').innerHTML = poolOptionsHtml(questions, hist, f);
+    document.getElementById("examMatch").textContent = matchLine(questions, hist, f);
+    S.ui.examForm = f;
+  }
+  function piStatsBlock(questions, hist) {
+    const view = S.ui.piView || "area";
+    const cl = S.ui.piCluster || "all";
+    const rows = piStats(questions, hist, { by: view, cluster: cl });
+    const all = S.ui.piAll;
+    const shown = all ? rows : rows.slice(0, 10);
+    const tagged = questions.some((q) => piOf(q));
+    if (!tagged) return "";
+    const cell = (p) => (p === null ? "–" : `${fmt(p, 0)}%`);
+    return `<section class="block pi-stats">
+      <div class="block-head"><h2>Accuracy by ${view === "area" ? "instructional area" : "performance indicator"}</h2>
+        <div class="tools">
+          <div class="seg small" role="group" aria-label="Group by"><button class="${view === "area" ? "on" : ""}" data-action="piView" data-id="area" aria-pressed="${view === "area"}">Instructional areas</button><button class="${view === "pi" ? "on" : ""}" data-action="piView" data-id="pi" aria-pressed="${view === "pi"}">Indicators</button></div>
+          <select data-change="piCluster" aria-label="Cluster">${clusterOptions(cl)}</select>
+        </div></div>
+      ${rows.length ? `<p class="muted">Weakest first. First try counts only the first time you answered each question, like your exam accuracy. Latest try uses your most recent answer, so it goes up as you review. ${view === "pi" ? "Indicators with fewer than 3 answers are listed last." : ""}</p>
+      <table class="plain pi-table"><thead><tr><th>${view === "area" ? "Instructional area" : "Performance indicator"}</th><th class="num">Answered</th><th>First try</th><th class="num">Latest try</th><th></th></tr></thead><tbody>
+      ${shown.map((r) => `<tr>
+        <td>${view === "area" ? esc(areaName(r.key)) : `<b>${esc(r.key)}</b> ${esc(piName(r.key))}<br><span class="muted">${esc(areaName(piArea(r.key)))}</span>`}</td>
+        <td class="num">${r.n || r.ln}</td>
+        <td><span class="m-bar inline"><i style="width:${(r.pct || 0).toFixed(1)}%"></i></span> ${cell(r.pct)}</td>
+        <td class="num">${cell(r.lastPct)}</td>
+        <td class="num"><button class="link" data-action="practisePi" data-id="${esc(view === "area" ? "area:" + r.key : r.key)}" data-cluster="${esc(cl)}">Practise</button></td></tr>`).join("")}
+      </tbody></table>
+      ${rows.length > 10 ? `<button class="link" data-action="piAll">${all ? "Show the weakest 10" : `Show all ${rows.length}`}</button>` : ""}`
+      : `<p class="muted">${cl === "all" ? "Do an exam to see which performance indicators you know best and which need work." : "You haven't answered any questions in this cluster yet."}</p>`}
+    </section>`;
+  }
 
   function quizView() {
     const z = S.quiz;
@@ -432,6 +577,7 @@
     const L = ["A", "B", "C", "D", "E"];
     const answered = z.answers.filter(Boolean).length;
     const correctSoFar = z.answers.filter((x) => x && x.correct).length;
+    const pi = piOf(q);
     return `<section class="quiz" tabindex="-1" aria-live="polite">
       <div class="quiz-top">
         <span>Question ${z.idx + 1} of ${z.qs.length}</span>
@@ -439,48 +585,60 @@
         <span>${correctSoFar} of ${answered} correct</span>
       </div>
       <div class="progress" aria-hidden="true"><i style="width:${((z.idx + (a ? 1 : 0)) / z.qs.length) * 100}%"></i></div>
-      <p class="q-status">${z.seen.has(q.id) ? "Seen before, so this one is review only" : "New question, counts toward your points"}</p>
+      <div class="q-bar"><p class="q-status">${z.seen.has(q.id) ? "Seen before, so this one is review only" : "New question, counts toward your points"}</p>${bookmarkBtn(q.id)}</div>
       <h2 class="q">${esc(q.q)}</h2>
       <div class="opts">${q.options.map((o, i) => {
         let cls = "";
         if (a) cls = i === q.answer ? "correct" : i === a.choice ? "wrong" : "dim";
         return `<button class="opt ${cls}" data-action="answer" data-i="${i}" ${a ? "disabled" : ""}><span class="key">${L[i]}</span><span>${esc(o)}</span></button>`;
       }).join("")}</div>
-      ${a ? `<div class="explain ${a.correct ? "good" : "bad"}"><b>${a.correct ? "Correct." : `The answer is ${L[q.answer]}.`}</b> ${esc(q.explanation || "")}</div>` : ""}
+      ${a ? `<div class="explain ${a.correct ? "good" : "bad"}"><b>${a.correct ? "Correct." : `The answer is ${L[q.answer]}.`}</b> ${esc(q.explanation || "")}${pi ? `<p class="q-pi">Performance indicator: <b>${esc(pi)}</b> ${esc(piName(pi))}, ${esc(areaName(piArea(pi)))}</p>` : ""}</div>` : ""}
       <div class="quiz-foot">
         <button class="link" data-action="quitQuiz">End and save</button>
         ${a ? `<button class="btn" data-action="nextQ">${z.idx + 1 < z.qs.length ? "Next question" : "See results"}</button>` : ""}
       </div>
     </section>`;
   }
+  const bookmarkBtn = (qid) => {
+    const on = S.exam && S.exam.hist.bookmarks.has(qid);
+    return `<button class="bm ${on ? "on" : ""}" data-action="bookmark" data-id="${esc(qid)}" aria-pressed="${on}"><span aria-hidden="true">${on ? "★" : "☆"}</span> ${on ? "Bookmarked" : "Bookmark"}</button>`;
+  };
   function quizResults() {
     const z = S.quiz;
     const r = z.result;
     const p = r.total ? (r.correct / r.total) * 100 : 0;
     const L = ["A", "B", "C", "D", "E"];
     const wrong = z.answers.map((a, i) => ({ a, q: z.qs[i] })).filter((x) => x.a && !x.a.correct);
+    // this exam, by instructional area
+    const areas = {};
+    z.answers.forEach((a, i) => { if (!a) return; const c = piOf(z.qs[i]); if (!c) return; const g = (areas[piArea(c)] = areas[piArea(c)] || { a: 0, c: 0 }); g.a++; if (a.correct) g.c++; });
+    const areaRows = Object.entries(areas).sort((x, y) => x[1].c / x[1].a - y[1].c / y[1].a || y[1].a - x[1].a);
     return `<section class="results">
       <div class="result-head">
         <p class="result-score"><span class="big">${r.correct}/${r.total}</span><span>${fmt(p, 0)}% correct</span></p>
         <div>
           <h1>${fmt(r.points)} points earned</h1>
           <p class="muted">${r.firstCount === r.total ? "All questions were new, so they all counted." : `${plural(r.firstCount, "new question")} counted. ${r.total - r.firstCount} were review.`}</p>
-          <div class="actions"><button class="btn" data-action="newQuiz">Start another exam</button><a class="btn secondary" href="#leaderboards" data-action="closeQuiz">View leaderboards</a></div>
+          <div class="actions"><button class="btn" data-action="newQuiz">Start another exam</button>${wrong.length ? `<button class="btn secondary" data-action="retryMissed">Retry the ${plural(wrong.length, "one")} I missed</button>` : ""}<a class="btn secondary" href="#leaderboards" data-action="closeQuiz">View leaderboards</a></div>
         </div>
       </div>
-      ${wrong.length ? `<h2>Questions you missed</h2><ol class="review">${wrong.map(({ a, q }) => `<li><p class="rq">${esc(q.q)}</p><p><span class="down">You chose ${L[a.choice]}:</span> ${esc(q.options[a.choice])}</p><p><span class="up">Answer ${L[q.answer]}:</span> ${esc(q.options[q.answer])}</p>${q.explanation ? `<p class="muted">${esc(q.explanation)}</p>` : ""}</li>`).join("")}</ol>` : `<p class="notice">No misses. Try a longer exam or a different cluster.</p>`}
+      ${areaRows.length > 1 ? `<h2>This exam by instructional area</h2>${meters(areaRows.map(([k, v]) => ({ name: areaName(k), note: `${v.c} of ${v.a}`, pct: (v.c / v.a) * 100 })))}` : ""}
+      ${wrong.length ? `<h2>Questions you missed</h2><ol class="review">${wrong.map(({ a, q }) => `<li><div class="rq-head"><p class="rq">${esc(q.q)}</p>${bookmarkBtn(q.id)}</div><p><span class="down">You chose ${L[a.choice]}:</span> ${esc(q.options[a.choice])}</p><p><span class="up">Answer ${L[q.answer]}:</span> ${esc(q.options[q.answer])}</p>${q.explanation ? `<p class="muted">${esc(q.explanation)}</p>` : ""}${piOf(q) ? `<p class="q-pi">${esc(piLabel(piOf(q)))}</p>` : ""}</li>`).join("")}</ol>` : `<p class="notice">No misses. Try a longer exam or a different cluster.</p>`}
     </section>`;
   }
   async function startQuiz(form) {
-    const fd = new FormData(form);
-    const cluster = fd.get("cluster");
-    const len = Number(fd.get("len"));
-    const unseenFirst = !!fd.get("unseenFirst");
-    const [questions, seen] = await Promise.all([S.be.listQuestions(), S.be.getSeen()]);
-    const pool = questions.filter((q) => cluster === "all" || q.cluster === cluster).filter((q) => Array.isArray(q.options) && q.options.length >= 2);
-    if (!pool.length) return toast("That cluster has no questions yet.", "bad");
-    const qs = unseenFirst ? [...shuffle(pool.filter((q) => !seen.has(q.id))), ...shuffle(pool.filter((q) => seen.has(q.id)))].slice(0, len) : shuffle(pool).slice(0, len);
-    S.quiz = { qs, idx: 0, answers: [], seen, cluster, done: false };
+    const f = readExamForm(form);
+    S.ui.examForm = f;
+    return startQuizWith(f);
+  }
+  async function startQuizWith(f, fixed) {
+    const [questions, hist] = await Promise.all([S.be.listQuestions(), S.be.getHistory()]);
+    S.exam = { questions, hist };
+    const pool = fixed || examPool(questions, hist, f);
+    if (!pool.length) return toast(f.pool === "bookmarks" ? "You have no bookmarked questions that match." : f.pool === "missed" ? "No missed questions match." : "No questions match these choices.", "bad");
+    const len = f.len || 10;
+    const qs = f.unseenFirst !== false ? [...shuffle(pool.filter((q) => !hist.seen.has(q.id))), ...shuffle(pool.filter((q) => hist.seen.has(q.id)))].slice(0, len) : shuffle(pool).slice(0, len);
+    S.quiz = { qs, idx: 0, answers: [], seen: hist.seen, cluster: f.cluster || "all", pi: f.pi || "all", pool: f.pool || "any", done: false };
     render();
   }
   function answerQ(i) {
@@ -491,6 +649,15 @@
     z.answers[z.idx] = { qid: q.id, choice: i, correct: i === Number(q.answer), first: !z.seen.has(q.id), cluster: q.cluster };
     render();
   }
+  async function toggleBookmark(qid) {
+    if (!S.exam) S.exam = { questions: await S.be.listQuestions(), hist: await S.be.getHistory() };
+    const set = S.exam.hist.bookmarks;
+    const on = !set.has(qid);
+    on ? set.add(qid) : set.delete(qid);
+    render();
+    try { await S.be.setBookmark(qid, on); toast(on ? "Bookmarked." : "Bookmark removed."); }
+    catch (e) { console.error(e); on ? set.delete(qid) : set.add(qid); render(); toast("That bookmark wasn't saved: " + e.message, "bad"); }
+  }
   async function finishQuiz() {
     const z = S.quiz;
     const ans = z.answers.filter(Boolean);
@@ -500,11 +667,12 @@
     first.forEach((a) => { const b = (byCluster[a.cluster] = byCluster[a.cluster] || { a: 0, c: 0 }); b.a++; if (a.correct) b.c++; });
     const date = LB.today();
     const attempt = {
-      date, season: LB.seasonFor(date, S.settings), cluster: z.cluster, total: ans.length, correct: ans.filter((a) => a.correct).length,
+      date, season: LB.seasonFor(date, S.settings), cluster: z.cluster, pi: z.pi, pool: z.pool, total: ans.length, correct: ans.filter((a) => a.correct).length,
       firstCount: first.length, firstCorrect: first.filter((a) => a.correct).length, byCluster, createdAt: Date.now()
     };
-    try { await S.be.recordExam(attempt, first.map((a) => a.qid)); }
+    try { await S.be.recordExam(attempt, ans.map((a) => ({ qid: a.qid, correct: a.correct, first: a.first }))); }
     catch (e) { console.error(e); toast("Your results weren't saved: " + e.message, "bad"); return; }
+    ans.forEach((a) => { const h = S.exam && S.exam.hist; if (!h) return; h.seen.add(a.qid); if (a.first) h.ok.set(a.qid, a.correct ? 1 : 0); h.last.set(a.qid, a.correct ? 1 : 0); });
     z.qs = z.qs.slice(0, ans.length);
     z.done = true;
     z.result = { ...attempt, points: attempt.firstCorrect * S.settings.points.examPerCorrect };
@@ -984,7 +1152,7 @@
     <section class="block">
       <div class="block-head"><h2>Question bank <span class="muted">${filtered.length} of ${qs.length}</span></h2>
         <div class="tools"><select data-change="qCluster" aria-label="Cluster">${clusterOptions(qCluster)}</select><input type="search" placeholder="Search questions" value="${esc(qSearch)}" data-change="qSearch" aria-label="Search questions"></div></div>
-      ${filtered.length ? `<ol class="qlist">${filtered.slice(0, 200).map((q) => `<li><div><p>${esc(q.q)}</p><p class="muted">${esc(LB.clusterName(q.cluster))}. Answer ${L[q.answer] || "?"}: ${esc((q.options || [])[q.answer] || "")}${q.source ? `. ${esc(q.source)}` : ""}</p></div><button class="del" data-action="delQ" data-id="${esc(q.id)}">Delete</button></li>`).join("")}</ol>${filtered.length > 200 ? `<p class="muted">Showing the first 200. Search to narrow the list.</p>` : ""}` : `<p class="empty">No questions match.</p>`}
+      ${filtered.length ? `<ol class="qlist">${filtered.slice(0, 200).map((q) => `<li><div><p>${esc(q.q)}</p><p class="muted">${esc(LB.clusterName(q.cluster))}. Answer ${L[q.answer] || "?"}: ${esc((q.options || [])[q.answer] || "")}${q.source ? `. ${esc(q.source)}` : ""}</p><p class="q-pi">${piOf(q) ? esc(piLabel(piOf(q))) : "No performance indicator"}</p></div><button class="del" data-action="delQ" data-id="${esc(q.id)}">Delete</button></li>`).join("")}</ol>${filtered.length > 200 ? `<p class="muted">Showing the first 200. Search to narrow the list.</p>` : ""}` : `<p class="empty">No questions match.</p>`}
     </section>`;
   }
   function execRecent(d) {
@@ -1122,7 +1290,7 @@
     const rows = parseCsv(text);
     const out = [], errors = [];
     rows.forEach((r, i) => {
-      const [cl, q, a, b, c, d, ans, expl, src] = r.map((x) => (x || "").trim());
+      const [cl, q, a, b, c, d, ans, expl, src, piIn] = r.map((x) => (x || "").trim());
       if (i === 0 && /^cluster$/i.test(cl)) return;
       const cluster = (LB.CLUSTERS.find((x) => x.id.toLowerCase() === (cl || "").toLowerCase() || x.name.toLowerCase() === (cl || "").toLowerCase()) || {}).id;
       const options = [a, b, c, d].filter((x) => x);
@@ -1130,7 +1298,13 @@
       if (!cluster) return errors.push(`Row ${i + 1}: "${cl}" isn't a cluster`);
       if (!q || options.length < 2) return errors.push(`Row ${i + 1}: needs a question and at least two options`);
       if (answer < 0 || answer >= options.length) return errors.push(`Row ${i + 1}: answer must be a letter from A to ${"ABCD"[options.length - 1]}`);
-      out.push({ cluster, q, options, answer, explanation: expl || "", source: src || "" });
+      let pi = "";
+      if (piIn) {
+        const m = piIn.toUpperCase().match(PI_RE);
+        if (!m) return errors.push(`Row ${i + 1}: "${piIn}" isn't a performance indicator code like MK:015`);
+        pi = PIS.remap[m[0]] || m[0];
+      }
+      out.push({ cluster, q, options, answer, explanation: expl || "", source: src || "", ...(pi ? { pi } : {}) });
     });
     return { out, errors };
   }
@@ -1165,11 +1339,17 @@
       case "quitQuiz": return finishQuiz();
       case "newQuiz": S.quiz = null; return render();
       case "closeQuiz": S.quiz = null; return;
+      case "bookmark": return toggleBookmark(id);
+      case "practiseBookmarks": return startQuizWith({ cluster: "all", pi: "all", pool: "bookmarks", len: 100, unseenFirst: false });
+      case "practisePi": { const f = { cluster: el.dataset.cluster || "all", pi: id, pool: "any", len: 10, unseenFirst: true }; S.ui.examForm = f; return startQuizWith(f); }
+      case "retryMissed": { const z = S.quiz; const qs = z.answers.map((x, i) => (x && !x.correct ? z.qs[i] : null)).filter(Boolean); return startQuizWith({ cluster: z.cluster, pi: z.pi, pool: "missed", len: qs.length, unseenFirst: false }, qs); }
+      case "piView": S.ui.piView = id; S.ui.piAll = false; return render();
+      case "piAll": S.ui.piAll = !S.ui.piAll; return render();
       case "approve": return run(async () => { await S.be.setUserFields(id, { approved: true }); invalidate(); render(); }, "Member approved.");
       case "delMember": if (!(await ask(S.be.mode === "live" ? "Remove this member from the site? To free up their email so it can sign up again, also delete it in Firebase under Authentication, then Users." : "Remove this account?", "Remove"))) return; return run(async () => { await S.be.deleteMember(id); invalidate(); render(); }, "Account removed.");
       case "delRp": if (!(await ask("Delete this roleplay? For team roleplays, each partner's record is deleted separately.", "Delete"))) return; return run(async () => { await S.be.deleteRoleplay(id); invalidate(); render(); }, "Roleplay deleted.");
       case "delQ": if (!(await ask("Delete this question?", "Delete"))) return; return run(async () => { await S.be.deleteQuestion(id); render(); }, "Question deleted.");
-      case "csvTemplate": return download("question-template.csv", "cluster,question,A,B,C,D,answer,explanation,source\nMKT,Which is NOT one of the four Ps?,Product,Price,Promotion,Profit,D,\"The four Ps are Product, Price, Place and Promotion.\",Sample\n", "text/csv");
+      case "csvTemplate": return download("question-template.csv", "cluster,question,A,B,C,D,answer,explanation,source,pi\nMKT,Which is NOT one of the four Ps?,Product,Price,Promotion,Profit,D,\"The four Ps are Product, Price, Place and Promotion.\",Sample,MK:001\n", "text/csv");
       case "addSeason": case "delSeason": case "addDate": case "delDate": {
         const s = readSettingsForm(el.closest("form"));
         if (a === "addSeason") { const last = s.seasons[s.seasons.length - 1]; s.seasons.push({ id: "s" + Date.now().toString(36), name: "New season", start: last ? last.end : LB.today(), end: last ? last.end : LB.today() }); }
@@ -1276,6 +1456,8 @@
     if (k === "boardSeason") { S.ui.season = el.value; return render(); }
     if (k === "boardCluster") { S.ui.cluster = el.value; return render(); }
     if (k === "qCluster") { S.ui.qCluster = el.value; return render(); }
+    if (k === "examForm") return refreshExamForm(el.form, el.name);
+    if (k === "piCluster") { S.ui.piCluster = el.value; S.ui.piAll = false; return render(); }
     if (k === "qSearch") { S.ui.qSearch = el.value; return render(); }
     if (k === "timeTyped") {
       const v = parseTime(el.value);
@@ -1322,7 +1504,8 @@
     const z = S.quiz;
     const k = e.key.toLowerCase();
     const map = { 1: 0, 2: 1, 3: 2, 4: 3, a: 0, b: 1, c: 2, d: 3 };
-    if (!z.answers[z.idx] && k in map) { e.preventDefault(); answerQ(map[k]); }
+    if (k === "s" && !e.metaKey && !e.ctrlKey) { e.preventDefault(); toggleBookmark(z.qs[z.idx].id); }
+    else if (!z.answers[z.idx] && k in map) { e.preventDefault(); answerQ(map[k]); }
     else if (z.answers[z.idx] && (k === "enter" || k === "arrowright")) { e.preventDefault(); if (z.idx + 1 < z.qs.length) { z.idx++; render(); } else finishQuiz(); }
   }
 

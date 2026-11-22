@@ -20,6 +20,20 @@
   const cleanFeedback = (fb) => JSON.parse(JSON.stringify(fb || {}));
   const readFeedback = (f) => ({ text: "", improve: "", situation: "", intro: "", conclusion: "", creative: "", questions: [], notes: { pi: [], cr: [] }, sections: {}, ...f, memberUid: undefined });
   const uid8 = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
+  // History object shared by both backends. docs: { qid: {at, ok, last} | time }
+  const makeHistory = (docs, bookmarks) => {
+    const h = { seen: new Set(), ok: new Map(), last: new Map(), bookmarks: new Set(bookmarks) };
+    Object.entries(docs).forEach(([id, v]) => {
+      if (id.charAt(0) === "_") return;
+      h.seen.add(id);
+      if (v && typeof v === "object") {
+        if (v.ok === 0 || v.ok === 1) h.ok.set(id, v.ok);
+        if (v.last === 0 || v.last === 1) h.last.set(id, v.last);
+        else if (v.ok === 0 || v.ok === 1) h.last.set(id, v.ok);
+      }
+    });
+    return h;
+  };
 
   LB.mergeSettings = function (saved) {
     const d = clone(LB.DEFAULT_SETTINGS);
@@ -37,7 +51,7 @@
   class LocalBackend {
     constructor() {
       this.mode = "demo";
-      this.key = "mgci_deca_lb_demo_v5";
+      this.key = "mgci_deca_lb_demo_v6";
       this.mem = null;
     }
     async init() {
@@ -109,11 +123,27 @@
     async addQuestions(arr) { arr.forEach((q) => (this.mem.questions["q_" + uid8()] = { ...q, createdAt: Date.now() })); this._save(); }
     async deleteQuestion(id) { delete this.mem.questions[id]; this._save(); }
 
-    async getSeen() { return new Set(Object.keys(this.mem.seen[this.mem.currentUid] || {})); }
-    async recordExam(attempt, firstIds) {
+    // Per-question history: seen[uid][qid] = { at, ok, last } (ok = first answer, last = latest answer; old saves are just a time)
+    async getHistory() {
+      const uid = this.mem.currentUid;
+      return makeHistory(this.mem.seen[uid] || {}, ((this.mem.bookmarks || {})[uid]) || []);
+    }
+    async getSeen() { return (await this.getHistory()).seen; }
+    async setBookmark(qid, on) {
+      const uid = this.mem.currentUid;
+      const b = (this.mem.bookmarks = this.mem.bookmarks || {});
+      const list = (b[uid] = (b[uid] || []).filter((x) => x !== qid));
+      if (on) list.push(qid);
+      this._save();
+    }
+    async recordExam(attempt, answers) {
       const uid = this.mem.currentUid;
       const seen = (this.mem.seen[uid] = this.mem.seen[uid] || {});
-      firstIds.forEach((id) => (seen[id] = Date.now()));
+      const now = Date.now();
+      answers.forEach((a) => {
+        const prev = typeof seen[a.qid] === "object" ? seen[a.qid] : seen[a.qid] ? { at: seen[a.qid] } : null;
+        seen[a.qid] = a.first || !prev ? { at: now, ok: a.correct ? 1 : 0, last: a.correct ? 1 : 0 } : { ...prev, last: a.correct ? 1 : 0 };
+      });
       (this.mem.attempts[uid] = this.mem.attempts[uid] || []).push({ id: "a_" + uid8(), ...attempt });
       if (attempt.firstCount > 0) {
         const key = uid + "_" + attempt.season;
@@ -293,12 +323,59 @@
       await this._bumpQuestions();
     }
 
-    async getSeen() { return new Set((await this._all("users", this.uid, "seen")).map((d) => d.id)); }
-    async recordExam(attempt, firstIds) {
+    /* Per-question history lives in users/{uid}/seen/{qid} = { at, ok, last, u }.
+       users/{uid}/seen/_bookmarks = { ids, u } holds bookmarks.
+       This device keeps a copy and only downloads what changed since (u = server time of the last change),
+       so opening Exam practice doesn't re-read every question a member has ever answered. */
+    _cacheGet(name) { try { const c = JSON.parse(localStorage.getItem(`mgci_${name}_v1_${this.uid}`)); return c && c.uid === this.uid ? c : null; } catch (e) { return null; } }
+    _cacheSet(name, c) { try { localStorage.setItem(`mgci_${name}_v1_${this.uid}`, JSON.stringify({ ...c, uid: this.uid })); } catch (e) { /* storage full or blocked: fine, we just read more next time */ } }
+    async _loadHistory() {
+      if (this._hist && this._hist.uid === this.uid) return this._hist;
+      const F = this.F, WEEK = 7 * 864e5;
+      let c = this._cacheGet("hist");
+      const full = !c || !c.full || Date.now() - c.full > WEEK;
+      const col = this._col("users", this.uid, "seen");
+      const snap = await F.getDocs(full ? col : F.query(col, F.where("u", ">", F.Timestamp.fromMillis(Math.max(0, (c.maxU || 0) - 120000)))));
+      if (full) c = { docs: {}, maxU: 0, full: Date.now() };
+      snap.docs.forEach((d) => {
+        const v = d.data();
+        const u = v.u && v.u.toMillis ? v.u.toMillis() : 0;
+        if (u > c.maxU) c.maxU = u;
+        c.docs[d.id] = d.id === "_bookmarks" ? { ids: v.ids || [] } : { at: v.at || 0, ok: v.ok, last: v.last };
+      });
+      this._hist = { uid: this.uid, ...c };
+      this._cacheSet("hist", c);
+      return this._hist;
+    }
+    async getHistory() {
+      const h = await this._loadHistory();
+      const { _bookmarks, ...docs } = h.docs;
+      return makeHistory(docs, (_bookmarks && _bookmarks.ids) || []);
+    }
+    async getSeen() { return (await this.getHistory()).seen; }
+    async setBookmark(qid, on) {
       const F = this.F;
+      const h = await this._loadHistory();
+      await F.setDoc(this._doc("users", this.uid, "seen", "_bookmarks"), { ids: on ? F.arrayUnion(qid) : F.arrayRemove(qid), u: F.serverTimestamp() }, { merge: true });
+      const ids = ((h.docs._bookmarks || {}).ids || []).filter((x) => x !== qid);
+      if (on) ids.push(qid);
+      h.docs._bookmarks = { ids };
+      this._cacheSet("hist", { docs: h.docs, maxU: h.maxU, full: h.full });
+    }
+    async recordExam(attempt, answers) {
+      const F = this.F;
+      const h = await this._loadHistory();
       const b = F.writeBatch(this.db);
-      firstIds.forEach((id) => b.set(this._doc("users", this.uid, "seen", id), { at: Date.now() }));
-      b.set(F.doc(this._col("users", this.uid, "attempts")), attempt);
+      const now = Date.now();
+      answers.forEach((a) => {
+        const r = a.correct ? 1 : 0;
+        const prev = h.docs[a.qid];
+        const v = a.first || !prev ? { at: now, ok: r, last: r } : { last: r };
+        b.set(this._doc("users", this.uid, "seen", a.qid), { ...v, u: F.serverTimestamp() }, { merge: true });
+        h.docs[a.qid] = { ...(prev || {}), ...v };
+      });
+      const aref = F.doc(this._col("users", this.uid, "attempts"));
+      b.set(aref, attempt);
       if (attempt.firstCount > 0) {
         const byCluster = {};
         Object.entries(attempt.byCluster).forEach(([c, v]) => (byCluster[c] = { a: F.increment(v.a), c: F.increment(v.c) }));
@@ -309,9 +386,25 @@
         );
       }
       await b.commit();
+      this._cacheSet("hist", { docs: h.docs, maxU: h.maxU, full: h.full });
+      if (this._att && this._att.uid === this.uid) { this._att.list.push({ id: aref.id, ...attempt }); this._cacheSet("att", this._att); }
     }
     async listExamStats() { return (await this._all("examStats")).map(({ id, ...s }) => s); }
-    async listMyAttempts() { return this._all("users", this.uid, "attempts"); }
+    async listMyAttempts() {
+      if (!(this._att && this._att.uid === this.uid)) {
+        const F = this.F;
+        let c = this._cacheGet("att");
+        const col = this._col("users", this.uid, "attempts");
+        const since = c && c.list.length ? Math.max(...c.list.map((a) => a.createdAt || 0)) : 0;
+        const snap = await F.getDocs(c ? F.query(col, F.where("createdAt", ">", since - 600000)) : col);
+        c = c || { list: [] };
+        const have = new Set(c.list.map((a) => a.id));
+        snap.docs.forEach((d) => { if (!have.has(d.id)) c.list.push({ id: d.id, ...d.data() }); });
+        this._att = { uid: this.uid, list: c.list };
+        this._cacheSet("att", this._att);
+      }
+      return clone(this._att.list);
+    }
     async exportAll() {
       const [settings, users, roleplays, questions, examStats, feedback] = await Promise.all([
         this.getSettings(), this.listUsers(), this.listRoleplays(), this._loadQuestions(), this.listExamStats(), this.getFeedback()
