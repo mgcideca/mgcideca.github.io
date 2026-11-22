@@ -1237,11 +1237,18 @@
         toast("Question added.");
         render();
       } else if (kind === "importCsv") {
-        const { out, errors } = csvToQuestions(String(fd.get("csv") || ""));
-        if (!out.length) return toast(errors.length ? errors.slice(0, 2).join(". ") : "There's nothing to import.", "bad");
+        const parsed = csvToQuestions(String(fd.get("csv") || ""));
+        const errors = parsed.errors;
+        // skip questions already in the bank (or repeated in the file), so importing a file twice is harmless
+        const key = (q) => q.cluster + "|" + q.q.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+        const have = new Set((await S.be.listQuestions()).map(key));
+        const out = parsed.out.filter((q) => { const k = key(q); if (have.has(k)) return false; have.add(k); return true; });
+        const dupes = parsed.out.length - out.length;
+        if (!out.length) return toast(dupes ? `All ${plural(dupes, "question")} in this file are already in the bank.` : errors.length ? errors.slice(0, 2).join(". ") : "There's nothing to import.", "bad");
         if (errors.length && !(await ask(`${plural(out.length, "question")} can be imported. ${plural(errors.length, "row")} can't:\n\n${errors.slice(0, 8).join("\n")}\n\nImport the ${plural(out.length, "question")} that worked?`, "Import"))) return;
+        const btn = form.querySelector(".btn"); if (btn) { btn.disabled = true; btn.textContent = "Importing…"; }
         await S.be.addQuestions(out);
-        toast(`Imported ${plural(out.length, "question")}.`);
+        toast(`Imported ${plural(out.length, "question")}${dupes ? `. Skipped ${plural(dupes, "question")} already in the bank` : ""}.`);
         render();
       } else if (kind === "settings") {
         const s = readSettingsForm(form);

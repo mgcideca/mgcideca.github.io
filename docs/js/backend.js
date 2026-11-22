@@ -255,20 +255,43 @@
         const c = JSON.parse(localStorage.getItem(key) || "null");
         if (c && c.v === v) return c.items;
       } catch (e) { /* ignore */ }
-      const items = await this._all("questions");
+      const items = await this._loadQuestions();
       try { localStorage.setItem(key, JSON.stringify({ v, items })); } catch (e) { /* too big or unavailable */ }
       return items;
     }
+    // Questions are stored in bundles ("packs") of up to 250 so that members download a few
+    // documents instead of thousands. Older one-question documents still work.
+    async _loadQuestions() {
+      const out = [];
+      (await this._all("questions")).forEach((d) => {
+        if (d.pack) {
+          let items = [];
+          try { items = JSON.parse(d.json || "[]"); } catch (e) { console.error("Bad question pack", d.id); }
+          items.forEach((q) => out.push({ ...q, packId: d.id }));
+        } else out.push(d);
+      });
+      return out;
+    }
     async _bumpQuestions() { await this.F.setDoc(this._doc("meta", "questions"), { version: Date.now() }); }
     async addQuestions(arr) {
-      for (let i = 0; i < arr.length; i += 400) {
-        const b = this.F.writeBatch(this.db);
-        arr.slice(i, i + 400).forEach((q) => b.set(this.F.doc(this._col("questions")), { ...q, createdAt: Date.now() }));
-        await b.commit();
+      const now = Date.now();
+      const items = arr.map((q) => ({ ...q, id: "q" + uid8() + uid8(), createdAt: now }));
+      for (let i = 0; i < items.length; i += 250) {
+        const chunk = items.slice(i, i + 250);
+        await this.F.setDoc(this.F.doc(this._col("questions")), { pack: true, count: chunk.length, createdAt: now, json: JSON.stringify(chunk) });
       }
       await this._bumpQuestions();
     }
-    async deleteQuestion(id) { await this.F.deleteDoc(this._doc("questions", id)); await this._bumpQuestions(); }
+    async deleteQuestion(id) {
+      const all = await this._loadQuestions();
+      const q = all.find((x) => x.id === id);
+      if (q && q.packId) {
+        const rest = all.filter((x) => x.packId === q.packId && x.id !== id).map(({ packId, ...x }) => x);
+        if (rest.length) await this.F.updateDoc(this._doc("questions", q.packId), { count: rest.length, json: JSON.stringify(rest) });
+        else await this.F.deleteDoc(this._doc("questions", q.packId));
+      } else await this.F.deleteDoc(this._doc("questions", id));
+      await this._bumpQuestions();
+    }
 
     async getSeen() { return new Set((await this._all("users", this.uid, "seen")).map((d) => d.id)); }
     async recordExam(attempt, firstIds) {
@@ -291,7 +314,7 @@
     async listMyAttempts() { return this._all("users", this.uid, "attempts"); }
     async exportAll() {
       const [settings, users, roleplays, questions, examStats, feedback] = await Promise.all([
-        this.getSettings(), this.listUsers(), this.listRoleplays(), this._all("questions"), this.listExamStats(), this.getFeedback()
+        this.getSettings(), this.listUsers(), this.listRoleplays(), this._loadQuestions(), this.listExamStats(), this.getFeedback()
       ]);
       return { exportedAt: new Date().toISOString(), settings, users, roleplays, feedback, questions, examStats };
     }
