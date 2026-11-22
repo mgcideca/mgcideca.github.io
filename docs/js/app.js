@@ -416,7 +416,12 @@
           ${recent.length ? `<table class="plain"><tbody>${recent.map((a) => `<tr><td>${fmtDate(a.date)}</td><td>${esc(a.cluster === "all" ? "Mixed" : LB.clusterName(a.cluster))}</td><td class="num">${a.correct}/${a.total}</td></tr>`).join("")}</tbody></table>` : `<p class="muted">None yet.</p>`}
         </section>
       </aside>
-    </div>`;
+    </div>
+    <aside class="q-note" aria-label="About these questions">
+      <h2>About these questions</h2>
+      <p>Every question in this bank is original. They were written for ${esc(CFG.chapterName || "our chapter")} to cover the same topics and use the same style as DECA's cluster exams, but none of them are copied from official DECA exams. Official exams are copyrighted by DECA Inc. and MBA Research and are not posted here.</p>
+      <p>Use them for practice and review. Your score here is a guide, not a prediction of your score at competition.</p>
+    </aside>`;
   }
   const meters = (items, digits = 0) => `<ul class="meters">${items.map((m) => `<li><span class="m-name">${esc(m.name)}${m.note ? `<small>${esc(m.note)}</small>` : ""}</span><span class="m-bar"><i style="width:${Math.max(0, Math.min(100, m.pct)).toFixed(1)}%"></i></span><span class="m-val">${fmt(m.pct, digits)}%</span></li>`).join("")}</ul>`;
 

@@ -549,3 +549,9 @@ ul.pts ul { padding-left: 20px; margin: 2px 0; list-style: circle; }
   .rep-item-head h3 { flex-basis: 100%; }
 }
 @media print { .rep-item, .rep-q { break-inside: avoid; } }
+
+/* exam practice: original-questions note */
+.q-note { margin-top: 28px; padding: 16px 20px; border-left: 3px solid var(--sky); background: var(--surface); border-radius: 0 var(--radius) var(--radius) 0; max-width: 78ch; }
+.q-note h2 { font-size: 1rem; margin: 0 0 6px; color: var(--navy); }
+.q-note p { margin: 0 0 6px; font-size: 0.93rem; color: var(--ink-soft); }
+.q-note p:last-child { margin-bottom: 0; }
