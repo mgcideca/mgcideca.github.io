@@ -1319,7 +1319,7 @@
           ${L.map((l, i) => `<label class="opt-input"><input type="radio" name="answer" value="${i}" ${i === 0 ? "checked" : ""} aria-label="${l} is correct"><span>${l}</span><input name="opt${i}" ${i < 2 ? "required" : ""} placeholder="${i >= 2 ? "Optional" : ""}"></label>`).join("")}
           </fieldset>
           <label>Explanation<input name="explanation" placeholder="Optional"></label>
-          <label>Source<input name="source" placeholder="e.g. 2025 Marketing Cluster Exam"></label>
+          <label>Source<input name="source" placeholder="e.g. IM:010 – Explain the nature of marketing research"></label>
           <div class="actions"><button class="btn">Add question</button></div>
         </form>
       </section>
