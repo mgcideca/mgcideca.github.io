@@ -16,6 +16,7 @@ docs/                  the website (GitHub Pages publishes this folder)
   js/scoring.js        points and standings maths
   js/backend.js        demo mode and Firebase data layers
   js/app.js            all pages
+  js/motion.js         animations: page scenes, transitions, scroll effects (safe to remove)
 firestore.rules        database security rules (paste into the Firebase console)
 sample-questions.csv   37 practice questions you can import to start the bank
 ```
