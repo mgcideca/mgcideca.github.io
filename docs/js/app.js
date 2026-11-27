@@ -69,10 +69,10 @@
 
   async function loadData(force) {
     if (!force && S.data && Date.now() - S.dataAt < 5 * 60e3) return S.data;
-    const [profiles, roleplays, examStats] = await Promise.all([
-      S.be.listProfiles(), S.be.listRoleplays(), S.be.listExamStats()
+    const [profiles, roleplays, examStats, adjustments] = await Promise.all([
+      S.be.listProfiles(), S.be.listRoleplays(), S.be.listExamStats(), S.be.listAdjustments()
     ]);
-    S.data = { profiles, roleplays, examStats };
+    S.data = { profiles, roleplays, examStats, adjustments };
     S.dataAt = Date.now();
     return S.data;
   }
@@ -880,15 +880,17 @@
     const pis = LB.piBreakdown(myRps).sort((a, b) => a.avg - b.avg);
     const trend = myRps.slice().reverse().map((r) => LB.pct(r));
     const prof = d.profiles[S.me.uid] || S.me;
+    const myAdj = (d.adjustments || []).filter((a) => a.uid === S.me.uid).sort((a, b) => (b.date < a.date ? -1 : b.date > a.date ? 1 : (b.createdAt || 0) - (a.createdAt || 0)));
 
     return `
     ${pageTitle("My Progress", "Your judge feedback, where you lose points, and your exam history.")}
     <dl class="figures wide">
-      <div><dt>${esc(seasonName(season))} points</dt><dd>${rowS ? fmt(rowS.total) : "0"}</dd></div>
+      <div><dt>${esc(seasonName(season))} points</dt><dd>${rowS ? fmt(rowS.total) : "0"}</dd>${rowS && rowS.bonus ? `<small>Includes ${fmt(rowS.bonus)} ${Math.abs(rowS.bonus) === 1 ? "point" : "points"} added by execs</small>` : ""}</div>
       <div><dt>All-time points</dt><dd>${rowA ? fmt(rowA.total) : "0"}</dd></div>
       <div><dt>Roleplay average</dt><dd>${rowA && rowA.rpCount ? fmt(rowA.rpAvg) + "%" : "–"}</dd><small>${plural(myRps.length, "roleplay")}${rowA && rowA.pbCount ? `, ${plural(rowA.pbCount, "personal best")}` : ""}</small></div>
       <div><dt>Exam accuracy</dt><dd>${rowA && rowA.answered ? fmt(rowA.examAcc) + "%" : "–"}</dd><small>${plural(rowA ? rowA.answered : 0, "question")}</small></div>
     </dl>
+    ${myAdj.length ? `<section class="block adj-mine"><h2>Points added by execs</h2><table class="plain"><tbody>${myAdj.map((a) => `<tr><td>${fmtDate(a.date)}</td><td class="num ${a.points < 0 ? "down" : "up"}">${a.points > 0 ? "+" : ""}${fmt(a.points)}</td><td>${esc(a.reason || "No reason given")}</td></tr>`).join("")}</tbody></table></section>` : ""}
 
     <div class="split">
       <section class="panel pad">
@@ -1053,11 +1055,12 @@
     const tab = S.ui.execTab;
     const [d, users] = await Promise.all([loadData(), S.be.listUsers()]);
     const pending = users.filter((u) => !u.approved);
-    const list = [["roleplay", "Score a roleplay"], ["approvals", `Approvals${pending.length ? ` <span class="count">${pending.length}</span>` : ""}`], ["questions", "Question bank"], ["recent", "Recent and calibration"]];
+    const list = [["roleplay", "Score a roleplay"], ["approvals", `Approvals${pending.length ? ` <span class="count">${pending.length}</span>` : ""}`], ["questions", "Question bank"], ["points", "Points"], ["recent", "Recent and calibration"]];
     let body = "";
     if (tab === "roleplay") body = execRoleplay(users);
     else if (tab === "approvals") body = execApprovals(pending);
     else if (tab === "questions") body = await execQuestions();
+    else if (tab === "points") body = execPoints(d);
     else body = execRecent(d);
     return `${pageTitle("Exec tools")}${tabs(list, tab, "execTab")}${body}`;
   }
@@ -1340,6 +1343,36 @@
       ${filtered.length ? `<ol class="qlist">${filtered.slice(0, 200).map((q) => `<li><div><p>${esc(q.q)}</p><p class="muted">${esc(LB.clusterName(q.cluster))}. Answer ${L[q.answer] || "?"}: ${esc((q.options || [])[q.answer] || "")}${q.source ? `. ${esc(q.source)}` : ""}</p><p class="q-pi">${piOf(q) ? esc(piLabel(piOf(q))) : "No performance indicator"}</p></div><button class="del" data-action="delQ" data-id="${esc(q.id)}">Delete</button></li>`).join("")}</ol>${filtered.length > 200 ? `<p class="muted">Showing the first 200. Search to narrow the list.</p>` : ""}` : `<p class="empty">No questions match.</p>`}
     </section>`;
   }
+  function execPoints(d) {
+    const members = Object.entries(d.profiles).map(([uid, p]) => ({ uid, ...p })).sort((a, b) => a.displayName.localeCompare(b.displayName));
+    const list = (d.adjustments || []).slice().sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    const pts = (n) => `${n > 0 ? "+" : ""}${fmt(n)}`;
+    const blocked = S.be.adjBlocked;
+    return `<div class="split">
+      <section class="panel pad">
+        <h2>Add points</h2>
+        ${blocked ? `<p class="notice bad">Firebase is blocking points right now because the Firestore rules haven't been updated yet. Publish the new rules in the Firebase console, under Firestore Database, then Rules, and reload this page.</p>` : ""}
+        <form data-form="addAdjust" class="form">
+          <label>Member<select name="uid" required><option value="">Choose a member</option>${members.map((m) => `<option value="${esc(m.uid)}">${esc(m.displayName)}${m.grade ? ` (grade ${esc(m.grade)})` : ""}</option>`).join("")}</select></label>
+          <label>Points<input name="points" type="number" step="any" required placeholder="e.g. 25"><small>To take points away, use a minus sign, like -10.</small></label>
+          <label>Reason<input name="reason" maxlength="120" placeholder="e.g. Ran the Grade 9 workshop"><small>The member sees this on their My Progress page.</small></label>
+          <label>Date<input name="date" type="date" value="${LB.today()}" required><small>Decides which season the points count toward.</small></label>
+          <div class="actions"><button class="btn">Add points</button></div>
+        </form>
+        <p class="fine">These points only change the Total points leaderboard and the member's point totals. Roleplay average, exam accuracy and most improved don't change, and the Total points board leaves them out when it's filtered to one cluster.</p>
+      </section>
+      <aside>
+        <section class="side-block">
+          <h2>Points added</h2>
+          ${list.length ? `<table class="plain adj-table"><thead><tr><th>Date</th><th>Member</th><th class="num">Points</th><th>Reason</th><th></th></tr></thead><tbody>${list.map((a) => `<tr>
+            <td>${fmtDate(a.date)}</td><td>${esc(nameOf(a.uid))}</td><td class="num ${a.points < 0 ? "down" : "up"}">${pts(a.points)}</td>
+            <td>${esc(a.reason || "")}${a.by ? `<br><span class="muted">Added by ${esc(nameOf(a.by))}</span>` : ""}</td>
+            <td class="num"><button class="link" data-action="delAdjust" data-id="${esc(a.id)}">Delete</button></td></tr>`).join("")}</tbody></table>`
+          : `<p class="muted">None yet.</p>`}
+        </section>
+      </aside>
+    </div>`;
+  }
   function execRecent(d) {
     const all = d.roleplays;
     const chapterAvg = all.length ? all.reduce((a, r) => a + LB.pct(r), 0) / all.length : 0;
@@ -1511,6 +1544,7 @@
       case "refresh": invalidate(); return render();
       case "board": S.ui.board = id; return render();
       case "execTab": S.ui.execTab = id; return render();
+      case "delAdjust": if (!(await ask("Delete these points? The member's total goes back to what it was without them.", "Delete"))) return; return run(async () => { await S.be.deleteAdjustment(id); invalidate(); render(); }, "Points deleted.");
       case "adminTab": S.ui.adminTab = id; return render();
       case "practiceTab": S.ui.practiceTab = id; if (location.hash.replace(/^#\/?/, "") === "practice") render(); return;
       case "pick": return pickScore(el.dataset.field, Number(el.dataset.v));
@@ -1553,8 +1587,8 @@
         const d = await loadData(true);
         const season = LB.currentSeasonId(S.settings);
         const rows = LB.computeRows({ ...d, settings: S.settings, season, includeHidden: true }).sort((x, y) => y.total - x.total);
-        const head = ["name", "grade", "event", "points", "roleplay_points", "exam_points", "roleplays", "roleplay_avg", "roleplay_best", "exam_answered", "exam_correct", "exam_accuracy", "improvement"];
-        const lines = [head.join(",")].concat(rows.map((x) => [x.name, x.grade, x.event, x.total, x.rpPoints, x.examPoints, x.rpCount, x.rpAvg, x.rpBest, x.answered, x.correct, x.examAcc, x.improved].map((v) => csvCell(typeof v === "number" ? Math.round(v * 10) / 10 : v)).join(",")));
+        const head = ["name", "grade", "event", "points", "roleplay_points", "exam_points", "bonus_points", "roleplays", "roleplay_avg", "roleplay_best", "exam_answered", "exam_correct", "exam_accuracy", "improvement"];
+        const lines = [head.join(",")].concat(rows.map((x) => [x.name, x.grade, x.event, x.total, x.rpPoints, x.examPoints, x.bonus, x.rpCount, x.rpAvg, x.rpBest, x.answered, x.correct, x.examAcc, x.improved].map((v) => csvCell(typeof v === "number" ? Math.round(v * 10) / 10 : v)).join(",")));
         download(`leaderboard-${season}-${LB.today()}.csv`, lines.join("\n"), "text/csv");
       });
     }
@@ -1600,6 +1634,23 @@
         render();
       } else if (kind === "startQuiz") await startQuiz(form);
       else if (kind === "logRoleplay") await saveRoleplay(form);
+      else if (kind === "addAdjust") {
+        const uid = String(fd.get("uid") || "");
+        const points = Number(fd.get("points"));
+        const date = String(fd.get("date") || LB.today());
+        if (!uid) return toast("Choose a member.", "bad");
+        if (!isFinite(points) || points === 0) return toast("Enter a number of points other than 0.", "bad");
+        if (Math.abs(points) > 100000) return toast("That's more than 100,000 points. Check the number.", "bad");
+        const btn = form.querySelector(".btn");
+        btn.disabled = true;
+        try {
+          await S.be.addAdjustment({ uid, points: Math.round(points * 100) / 100, reason: String(fd.get("reason") || "").trim().slice(0, 120), date, season: LB.seasonFor(date, S.settings) });
+        } finally { btn.disabled = false; }
+        const who = nameOf(uid);
+        invalidate();
+        toast(`${points > 0 ? "Added" : "Took away"} ${fmt(Math.abs(points))} ${Math.abs(points) === 1 ? "point" : "points"} ${points > 0 ? "for" : "from"} ${who}.`);
+        render();
+      }
       else if (kind === "addQuestion") {
         const options = [0, 1, 2, 3].map((i) => String(fd.get("opt" + i) || "").trim());
         let answer = Number(fd.get("answer"));

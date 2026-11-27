@@ -112,6 +112,10 @@
       this._save();
     }
     async deleteRoleplay(id) { delete this.mem.roleplays[id]; delete this.mem.feedback[id]; this._save(); }
+    // Points added (or taken away) by execs. They only count toward Total points.
+    async listAdjustments() { this.mem.adjustments = this.mem.adjustments || {}; return this._list("adjustments"); }
+    async addAdjustment(a) { this.mem.adjustments = this.mem.adjustments || {}; this.mem.adjustments["adj_" + uid8()] = { ...a, by: this.mem.currentUid, createdAt: Date.now() }; this._save(); }
+    async deleteAdjustment(id) { delete (this.mem.adjustments || {})[id]; this._save(); }
     async getFeedback(memberUid) {
       const o = {};
       Object.entries(this.mem.feedback).forEach(([id, f]) => { if (!memberUid || f.memberUid === memberUid) o[id] = readFeedback(clone(f)); });
@@ -260,6 +264,18 @@
       });
       await b.commit();
     }
+    // Points added (or taken away) by execs. They only count toward Total points.
+    // If the Firestore rules haven't been updated yet, reading is refused: treat that as "no adjustments"
+    // so the rest of the site keeps working, and remember it so Exec tools can say what to do.
+    async listAdjustments() {
+      try { this.adjBlocked = false; return await this._all("adjustments"); }
+      catch (e) { if (/permission|insufficient/i.test(String(e.code || e.message))) { this.adjBlocked = true; return []; } throw e; }
+    }
+    async addAdjustment(a) {
+      try { await this.F.setDoc(this.F.doc(this._col("adjustments")), { ...a, by: this.uid, createdAt: Date.now() }); }
+      catch (e) { if (/permission|insufficient/i.test(String(e.code || e.message))) throw new Error("Firebase refused it. Publish the updated Firestore rules first (see the note on this page)."); throw e; }
+    }
+    async deleteAdjustment(id) { await this.F.deleteDoc(this._doc("adjustments", id)); }
     async deleteRoleplay(id) {
       const b = this.F.writeBatch(this.db);
       b.delete(this._doc("roleplays", id));
@@ -406,10 +422,10 @@
       return clone(this._att.list);
     }
     async exportAll() {
-      const [settings, users, roleplays, questions, examStats, feedback] = await Promise.all([
-        this.getSettings(), this.listUsers(), this.listRoleplays(), this._loadQuestions(), this.listExamStats(), this.getFeedback()
+      const [settings, users, roleplays, questions, examStats, feedback, adjustments] = await Promise.all([
+        this.getSettings(), this.listUsers(), this.listRoleplays(), this._loadQuestions(), this.listExamStats(), this.getFeedback(), this.listAdjustments()
       ]);
-      return { exportedAt: new Date().toISOString(), settings, users, roleplays, feedback, questions, examStats };
+      return { exportedAt: new Date().toISOString(), settings, users, roleplays, feedback, questions, examStats, adjustments };
     }
   }
 

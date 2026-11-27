@@ -904,3 +904,15 @@ main.page.enter .entry-title .w { animation: wordup 1s var(--pop) both; animatio
 main.page.enter .entry-rules div { animation: rise 0.8s var(--pop) both; animation-delay: calc(500ms + var(--c, 0) * 110ms); }
 
 @media print { html.motion .rv { opacity: 1; transform: none; } .marquee { display: none; } }
+
+/* ---------- exec points (v10) ---------- */
+.adj-table td { vertical-align: top; }
+.adj-table td.num.up { color: var(--up, #1d7a3e); font-weight: 600; }
+.adj-table td.num.down, .adj-mine td.num.down { color: var(--down, #b3261e); font-weight: 600; }
+.adj-mine td.num.up { color: var(--up, #1d7a3e); font-weight: 600; }
+.adj-mine table { max-width: 640px; }
+.form label small { display: block; font-weight: 400; color: var(--muted); font-size: 0.82rem; margin-top: 4px; }
+.adj-table th, .adj-table td { padding-right: 10px; }
+.adj-table td:first-child { white-space: nowrap; }
+.adj-table td.num, .adj-table th.num { padding-right: 14px; }
+form[data-form="addAdjust"] + .fine { margin-top: 16px; }

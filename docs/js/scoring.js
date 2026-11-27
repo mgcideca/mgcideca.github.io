@@ -45,13 +45,13 @@
     return P.rpAttend + LB.pct(r) / P.rpScoreDiv + (isPB ? P.rpPbBonus : 0);
   };
 
-  LB.computeRows = function ({ profiles, roleplays, examStats, settings, season = "all", cluster = "all", includeHidden = false }) {
+  LB.computeRows = function ({ profiles, roleplays, examStats, adjustments = [], settings, season = "all", cluster = "all", includeHidden = false }) {
     const P = settings.points;
     const pb = LB.markPersonalBests(roleplays);
     const rows = {};
     const row = (uid) =>
       rows[uid] ||
-      (rows[uid] = { uid, rpPoints: 0, examPoints: 0, rpList: [], answered: 0, correct: 0, pbCount: 0 });
+      (rows[uid] = { uid, rpPoints: 0, examPoints: 0, bonus: 0, rpList: [], answered: 0, correct: 0, pbCount: 0 });
 
     roleplays.forEach((r) => {
       if (!LB.inSeason(r.date, season, settings)) return;
@@ -73,6 +73,13 @@
       }
     });
 
+    // Exec-added points: they count toward Total points only, and only when no cluster filter is on
+    if (cluster === "all") adjustments.forEach((a) => {
+      if (season !== "all" && a.season !== season) return;
+      const n = Number(a.points);
+      if (a.uid && isFinite(n)) row(a.uid).bonus += n;
+    });
+
     return Object.values(rows)
       .filter((x) => profiles[x.uid] && (includeHidden || profiles[x.uid].showOnBoards !== false))
       .map((x) => {
@@ -81,7 +88,7 @@
         x.grade = prof.grade;
         x.event = prof.event;
         x.examPoints = x.correct * P.examPerCorrect;
-        x.total = x.rpPoints + x.examPoints;
+        x.total = x.rpPoints + x.examPoints + x.bonus;
         x.rpList.sort(byTime);
         x.rpCount = x.rpList.length;
         x.rpAvg = x.rpCount ? x.rpList.reduce((a, b) => a + b.p, 0) / x.rpCount : 0;
